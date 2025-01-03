@@ -88,11 +88,9 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
             </div>
             <Link
               href={`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`}
-              className="shrink-0"
+              className="text-sm text-white/60 hover:text-white transition-colors"
             >
-              <Button>
-                Edit Segments
-              </Button>
+              Configure
             </Link>
           </div>
         ))}
