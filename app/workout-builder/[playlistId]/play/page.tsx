@@ -3,13 +3,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Play as PlayIcon,
-  Pause as PauseIcon,
-  SkipBack as SkipBackIcon,
-  SkipForward as SkipForwardIcon,
-  ArrowLeft as ArrowLeftIcon,
-} from "lucide-react";
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PauseIcon from '@mui/icons-material/Pause';
+import SkipNextIcon from '@mui/icons-material/SkipNext';
+import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import FastForwardIcon from '@mui/icons-material/FastForward';
 import { Track, PlaybackState, TrackBPM, Segment } from "../types";
 import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
@@ -463,202 +462,207 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
-        <div className="container mx-auto">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-4 hover:bg-white/10"
-            onClick={() => {
-              if (
-                typeof resolvedParams === "object" &&
-                resolvedParams !== null &&
-                "playlistId" in resolvedParams
-              ) {
-                router.push(`/workout-builder/${resolvedParams.playlistId}`);
-              } else {
-                router.push("/workout-builder/");
-              }
-            }}
-          >
-            <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            Back to Playlist
-          </Button>
+    {/* Header */}
+    <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
+      <div className="container mx-auto">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4 hover:bg-white/10"
+          onClick={() => {
+            if (
+              typeof resolvedParams === "object" &&
+              resolvedParams !== null &&
+              "playlistId" in resolvedParams
+            ) {
+              router.push(`/workout-builder/${resolvedParams.playlistId}`);
+            } else {
+              router.push("/workout-builder/");
+            }
+          }}
+        >
+          <ArrowBackIcon className="w-4 h-4 mr-2" />
+          Back to Playlist
+        </Button>
+      </div>
+    </div>
 
-          <div className="flex items-center gap-8">
-            {/* Album art and track info */}
-            <div className="flex items-center gap-6 flex-1">
-              {currentTrack.album?.images?.[0] && (
-                <img
-                  src={currentTrack.album.images[0].url}
-                  alt={currentTrack.name}
-                  className="w-32 h-32 rounded"
-                />
-              )}
-              <div>
-                <h1 className="text-3xl font-bold">{currentTrack.name}</h1>
-                <p className="text-gray-400">
-                  {currentTrack.artists.map((a) => a.name).join(", ")}
-                </p>
-              </div>
-            </div>
-
-            {/* BPM Display */}
-            <div className="flex flex-col items-center justify-center px-8 py-4 bg-white/5 rounded-lg">
-              <div className="text-5xl font-mono font-bold text-white/90 mb-1">
-                {Math.round(trackBPM.tempo)}
-              </div>
-              <div className="text-sm text-gray-400 uppercase tracking-wider">
-                BPM
-              </div>
+    {/* Header */}
+    <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
+      <div className="container mx-auto">
+        <div className="flex items-center gap-8">
+          {/* Album art and track info */}
+          <div className="flex items-center gap-6 flex-1">
+            {currentTrack.album?.images?.[0] && (
+              <img
+                src={currentTrack.album.images[0].url}
+                alt={currentTrack.name}
+                className="w-32 h-32 rounded"
+              />
+            )}
+            <div>
+              <h1 className="text-3xl font-bold">{currentTrack.name}</h1>
+              <p className="text-gray-400">
+                {currentTrack.artists.map((a) => a.name).join(", ")}
+              </p>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Fixed workout display with beat counter */}
-      {playbackState.isPlaying && (
-        <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
-          <div className="container mx-auto py-4">
-            <div className="flex gap-4 items-stretch">
-              {(() => {
-                const { currentSegment, nextSegment } =
-                  getCurrentAndNextSegment(playbackState.position, segments);
-
-                return (
-                  <>
-                    <WorkoutDisplay segment={currentSegment} />
-                    <BeatCountdown
-                      currentPosition={playbackState.position}
-                      nextSegmentStart={
-                        nextSegment?.startTime ?? currentTrack.duration_ms
-                      }
-                      bpm={trackBPM.tempo}
-                      nextSegment={nextSegment}
-                    />
-                    <WorkoutDisplay segment={nextSegment} isNext />
-                  </>
-                );
-              })()}
+          {/* BPM Display */}
+          <div className="flex flex-col items-center justify-center px-8 py-4 bg-white/5 rounded-lg">
+            <div className="text-5xl font-mono font-bold text-white/90 mb-1">
+              {Math.round(trackBPM.tempo)}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto py-8">
-          {/* Workout progress */}
-          <div className="mt-8">
-            <WorkoutProgress
-              segments={segments}
-              currentPosition={playbackState.position}
-              duration={currentTrack.duration_ms}
-            />
-          </div>
-
-          {/* Playback controls */}
-          <div className="flex justify-center gap-4 mt-8">
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={playPreviousTrack}
-              disabled={currentTrackIndex === 0}
-              className="w-12 h-12 rounded-full"
-            >
-              <SkipBackIcon className="w-6 h-6" />
-            </Button>
-
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={togglePlayback}
-              className="w-16 h-16 rounded-full"
-            >
-              {playbackState.isPlaying ? (
-                <PauseIcon className="w-8 h-8" />
-              ) : (
-                <PlayIcon className="w-8 h-8" />
-              )}
-            </Button>
-
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={debouncedPlayNextTrack}
-              disabled={currentTrackIndex === tracks.length - 1}
-              className="w-12 h-12 rounded-full"
-            >
-              <SkipForwardIcon className="w-6 h-6" />
-            </Button>
-
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={jumpToNextSegment}
-              className="w-12 h-12 rounded-full"
-            >
-              Jump to Next Segment
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Track progress bar */}
-      <div className="flex-none bg-black/20 p-4">
-        <div className="container mx-auto">
-          <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white/50 transition-all duration-1000"
-              style={{
-                width: `${
-                  (playbackState.position / currentTrack.duration_ms) * 100
-                }%`,
-              }}
-            />
-          </div>
-          <div className="flex justify-between mt-2 text-sm text-gray-400">
-            <span>{formatTime(playbackState.position)}</span>
-            <span>{formatTime(currentTrack.duration_ms)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Playlist Overview */}
-      <div className="mb-8 bg-black/20 p-4">
-        <div className="container mx-auto">
-          <h2 className="text-lg font-semibold mb-4">Workout Playlist</h2>
-          <div className="space-y-2">
-            {tracks.map((track, index) => (
-              <div
-                key={`${track.id}-${index}`}
-                className={`flex items-center p-3 rounded-lg cursor-pointer hover:bg-white/5 ${
-                  index === currentTrackIndex ? "bg-white/10" : ""
-                }`}
-                onClick={() => {
-                  setCurrentTrackIndex(index);
-                  playTrack(track.id);
-                }}
-              >
-                <div className="w-8 text-gray-400">{index + 1}</div>
-                <div className="flex-1">
-                  <div className="font-medium">{track.name}</div>
-                  <div className="text-sm text-gray-400">
-                    {track.artists.map((a) => a.name).join(", ")}
-                  </div>
-                </div>
-                <div className="text-sm text-gray-400">
-                  {Math.floor(track.duration_ms / 60000)}:
-                  {String(
-                    Math.floor((track.duration_ms % 60000) / 1000)
-                  ).padStart(2, "0")}
-                </div>
-              </div>
-            ))}
+            <div className="text-sm text-gray-400 uppercase tracking-wider">
+              BPM
+            </div>
           </div>
         </div>
       </div>
     </div>
-  );
+
+    {/* Fixed workout display with beat counter */}
+    {playbackState.isPlaying && (
+      <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
+        <div className="container mx-auto py-4">
+          <div className="flex gap-4 items-stretch">
+            {(() => {
+              const { currentSegment, nextSegment } =
+                getCurrentAndNextSegment(playbackState.position, segments);
+
+              return (
+                <>
+                  <WorkoutDisplay segment={currentSegment} />
+                  <BeatCountdown
+                    currentPosition={playbackState.position}
+                    nextSegmentStart={
+                      nextSegment?.startTime ?? currentTrack.duration_ms
+                    }
+                    bpm={trackBPM.tempo}
+                    nextSegment={nextSegment}
+                  />
+                  <WorkoutDisplay segment={nextSegment} isNext />
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Main content */}
+    <div className="flex-1 overflow-y-auto">
+      <div className="container mx-auto py-8">
+        {/* Workout progress */}
+        <div className="mt-8">
+          <WorkoutProgress
+            segments={segments}
+            currentPosition={playbackState.position}
+            duration={currentTrack.duration_ms}
+          />
+        </div>
+
+        {/* Playback controls */}
+        <div className="flex justify-center items-center gap-4 mt-8">
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={playPreviousTrack}
+            disabled={currentTrackIndex === 0}
+            className="w-12 h-12 rounded-full flex items-center justify-center"
+          >
+            <SkipPreviousIcon className="w-6 h-6" />
+          </Button>
+
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={togglePlayback}
+            className="w-16 h-16 rounded-full flex items-center justify-center"
+          >
+            {playbackState.isPlaying ? (
+              <PauseIcon className="w-8 h-8" />
+            ) : (
+              <PlayArrowIcon className="w-8 h-8" />
+            )}
+          </Button>
+
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={debouncedPlayNextTrack}
+            disabled={currentTrackIndex === tracks.length - 1}
+            className="w-12 h-12 rounded-full flex items-center justify-center"
+          >
+            <SkipNextIcon className="w-6 h-6" />
+          </Button>
+
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={jumpToNextSegment}
+            className="w-12 h-12 rounded-full flex items-center justify-center"
+          >
+            <FastForwardIcon className="w-6 h-6" />
+          </Button>
+        </div>
+
+        {/* Track progress bar */}
+        <div className="flex-none bg-black/20 p-4 mt-8">
+          <div className="container mx-auto">
+            <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white/50 transition-all duration-1000"
+                style={{
+                  width: `${
+                    (playbackState.position / currentTrack.duration_ms) * 100
+                  }%`,
+                }}
+              />
+            </div>
+            <div className="flex justify-between mt-2 text-sm text-gray-400">
+              <span>{formatTime(playbackState.position)}</span>
+              <span>{formatTime(currentTrack.duration_ms)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Playlist Overview */}
+        <div className="mb-8 bg-black/20 p-4">
+          <div className="container mx-auto">
+            <h2 className="text-lg font-semibold mb-4">Workout Playlist</h2>
+            <div className="space-y-2">
+              {tracks.map((track, index) => (
+                <div
+                  key={`${track.id}-${index}`}
+                  className={`flex items-center p-3 rounded-lg cursor-pointer hover:bg-white/5 ${
+                    index === currentTrackIndex ? "bg-white/10" : ""
+                  }`}
+                  onClick={() => {
+                    setCurrentTrackIndex(index);
+                    playTrack(track.id);
+                  }}
+                >
+                  <div className="w-8 text-gray-400">{index + 1}</div>
+                  <div className="flex-1">
+                    <div className="font-medium">{track.name}</div>
+                    <div className="text-sm text-gray-400">
+                      {track.artists.map((a) => a.name).join(", ")}
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {Math.floor(track.duration_ms / 60000)}:
+                    {String(
+                      Math.floor((track.duration_ms % 60000) / 1000)
+                    ).padStart(2, "0")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 }
