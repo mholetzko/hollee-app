@@ -1,18 +1,5 @@
 import { NextResponse } from "next/server";
 
-// Update the scopes to include playback control
-const scopes = [
-  "playlist-read-private",
-  "streaming",
-  "user-read-playback-state",
-  "user-modify-playback-state",
-  "playlist-modify-private",
-  "user-read-currently-playing",
-  "user-library-read",
-  "user-read-email",
-  "user-read-private"
-].join(" ");
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
