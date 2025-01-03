@@ -14,6 +14,12 @@ interface Track {
   album?: { images?: { url: string }[] }
 }
 
+const hasSavedSegments = (songId: string): boolean => {
+  if (typeof window === 'undefined') return false
+  const stored = localStorage.getItem(`segments_${songId}`)
+  return stored ? JSON.parse(stored).length > 0 : false
+}
+
 export default function WorkoutBuilder({ params }: { params: Promise<{ playlistId: string }> }) {
   const resolvedParams = use(params)
   const [tracks, setTracks] = useState<Track[]>([])
@@ -68,32 +74,48 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Workout Builder</h1>
       <div className="grid gap-4">
-        {tracks.map((track) => (
-          <div
-            key={track.id}
-            className="bg-white/5 rounded-lg p-4 flex items-center gap-4"
-          >
-            {track.album?.images?.[0] && (
-              <img
-                src={track.album.images[0].url}
-                alt={track.name}
-                className="w-16 h-16 rounded"
-              />
-            )}
-            <div className="flex-1">
-              <h2 className="font-semibold">{track.name}</h2>
-              <p className="text-sm text-gray-400">
-                {track.artists.map(a => a.name).join(', ')} • {formatDuration(track.duration_ms)}
-              </p>
-            </div>
+        {tracks.map((track) => {
+          const hasConfig = hasSavedSegments(track.id)
+          
+          return (
             <Link
+              key={track.id}
               href={`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`}
-              className="text-sm text-white/60 hover:text-white transition-colors"
+              className={`
+                flex items-center gap-4 p-4 rounded-lg 
+                ${hasConfig ? 'bg-white/10' : 'bg-black/20'} 
+                hover:bg-white/20 transition-colors relative group
+              `}
             >
-              Configure
+              {track.album?.images?.[0] && (
+                <img
+                  src={track.album.images[0].url}
+                  alt={track.name}
+                  className="w-16 h-16 rounded"
+                />
+              )}
+              <div className="flex-1">
+                <div className="font-medium">{track.name}</div>
+                <div className="text-sm text-gray-400">
+                  {track.artists.map(a => a.name).join(', ')}
+                </div>
+              </div>
+              
+              {hasConfig && (
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-green-400" />
+                  Configured
+                </div>
+              )}
+              
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button size="sm" variant="ghost">
+                  Edit Workout
+                </Button>
+              </div>
             </Link>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

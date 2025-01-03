@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { use } from 'react'
-import { PlayIcon, PauseIcon, StopIcon } from '@radix-ui/react-icons'
+import { PlayIcon, PauseIcon, StopIcon, ArrowLeftIcon } from '@radix-ui/react-icons'
 
 // Add type for Spotify Player
 declare global {
@@ -582,10 +582,49 @@ const findAdjacentSegments = (segments: Segment[], currentId: string) => {
   }
 }
 
+// Add a helper function to get/set segments from localStorage
+const getStoredSegments = (songId: string): Segment[] => {
+  if (typeof window === 'undefined') {
+    console.log('getStoredSegments: Window not defined')
+    return []
+  }
+  const stored = localStorage.getItem(`segments_${songId}`)
+  console.log('getStoredSegments:', { songId, stored })
+  const segments = stored ? JSON.parse(stored) : []
+  console.log('Parsed segments:', segments)
+  return segments
+}
+
+const saveSegmentsToStorage = (songId: string, segments: Segment[]) => {
+  console.log('saveSegmentsToStorage:', { songId, segments })
+  localStorage.setItem(`segments_${songId}`, JSON.stringify(segments))
+}
+
+// Add a loading state component
+const LoadingState = ({ songId }: { songId: string }) => {
+  // Check if we have saved segments while showing loading state
+  const hasSavedConfig = getStoredSegments(songId).length > 0
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="animate-spin h-8 w-8 border-2 border-white/50 rounded-full border-t-transparent" />
+      <div className="text-sm text-gray-400">
+        {hasSavedConfig ? 'Loading saved workout configuration...' : 'Loading track...'}
+      </div>
+    </div>
+  )
+}
+
 export default function SongSegmentEditor({ params }: { params: any }) {
   const resolvedParams = use(params)
   const [track, setTrack] = useState<Track | null>(null)
-  const [segments, setSegments] = useState<Segment[]>([])
+  const [segments, setSegments] = useState<Segment[]>(() => {
+    // Initialize segments state with stored data immediately
+    if (typeof window !== 'undefined') {
+      return getStoredSegments(resolvedParams.songId)
+    }
+    return []
+  })
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const [player, setPlayer] = useState<any>(null)
@@ -744,17 +783,18 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     }
   }, [track])
 
-  // Update the track fetching useEffect
+  // Remove the segments loading effect and keep only the track fetching
   useEffect(() => {
     const fetchTrack = async () => {
+      console.log('Fetching track data...')
       try {
         const accessToken = localStorage.getItem('spotify_access_token')
         if (!accessToken) {
+          console.log('No access token, redirecting...')
           router.push('/')
           return
         }
 
-        console.log('Fetching track:', resolvedParams.songId)
         const response = await fetch(
           `https://api.spotify.com/v1/tracks/${resolvedParams.songId}`,
           {
@@ -765,7 +805,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         )
 
         if (!response.ok) {
-          console.error('Track response:', {
+          console.error('Track fetch failed:', {
             status: response.status,
             statusText: response.statusText
           })
@@ -773,10 +813,11 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         }
 
         const data = await response.json()
-        console.log('Track data:', data)
+        console.log('Track data received:', data)
         setTrack(data)
       } catch (error) {
         console.error('Error fetching track:', error)
+        setError(error instanceof Error ? error.message : 'An error occurred')
       } finally {
         setLoading(false)
       }
@@ -785,14 +826,29 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     fetchTrack()
   }, [resolvedParams.songId, router])
 
+  // Keep only the segments saving effect
+  useEffect(() => {
+    if (resolvedParams?.songId) {
+      console.log('Saving segments:', { songId: resolvedParams.songId, segments })
+      saveSegmentsToStorage(resolvedParams.songId, segments)
+    }
+  }, [segments, resolvedParams?.songId])
+
+  // Add logging to addSegment
   const addSegment = () => {
-    if (!track) return
+    if (!track) {
+      console.log('Cannot add segment: track not loaded')
+      return
+    }
 
     const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime)
     const lastSegment = sortedSegments[sortedSegments.length - 1]
     const startTime = lastSegment ? lastSegment.endTime : 0
     
-    if (startTime >= track.duration_ms) return
+    if (startTime >= track.duration_ms) {
+      console.log('Cannot add segment: would exceed track duration')
+      return
+    }
 
     const newSegment: Segment = {
       id: crypto.randomUUID(),
@@ -803,7 +859,9 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       intensity: 55
     }
 
-    setSegments([...segments, newSegment])
+    console.log('Adding new segment:', newSegment)
+    const updatedSegments = [...segments, newSegment]
+    setSegments(updatedSegments)
   }
 
   const formatDuration = (ms: number) => {
@@ -1011,11 +1069,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   }
 
   if (loading || !track) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin h-8 w-8 border-2 border-white/50 rounded-full border-t-transparent" />
-      </div>
-    )
+    return <LoadingState songId={resolvedParams.songId} />
   }
 
   return (
@@ -1023,6 +1077,16 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       {/* Fixed header with song info and BPM */}
       <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
         <div className="container mx-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-4 hover:bg-white/10"
+            onClick={() => router.push(`/workout-builder/${resolvedParams.playlistId}`)}
+          >
+            <ArrowLeftIcon className="w-4 h-4 mr-2" />
+            Back to Playlist
+          </Button>
+
           <div className="flex items-start gap-6">
             <div className="flex items-center gap-6">
               {track.album?.images?.[0] && (
@@ -1417,7 +1481,10 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => setSegments(segments.filter(s => s.id !== segment.id))}
+                        onClick={() => {
+                          const updatedSegments = segments.filter(s => s.id !== segment.id)
+                          setSegments(updatedSegments)
+                        }}
                       >
                         Remove
                       </Button>
