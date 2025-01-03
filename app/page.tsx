@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/Footer";
 
 function FQDN() {
-  return process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
+  return process.env.NEXT_PUBLIC_VERCEL_URL
+    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
     : "http://localhost:3000";
 }
 
