@@ -630,34 +630,39 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
         {/* Playlist Overview */}
         <div className="mb-8 bg-black/20 p-4">
           <div className="container mx-auto">
-            <h2 className="text-lg font-semibold mb-4">Workout Playlist</h2>
+            <h2 className="text-lg font-semibold mb-4">Up Next</h2>
             <div className="space-y-2">
-              {tracks.map((track, index) => (
-                <div
-                  key={`${track.id}-${index}`}
-                  className={`flex items-center p-3 rounded-lg cursor-pointer hover:bg-white/5 ${
-                    index === currentTrackIndex ? "bg-white/10" : ""
-                  }`}
-                  onClick={() => {
-                    setCurrentTrackIndex(index);
-                    playTrack(track.id);
-                  }}
-                >
-                  <div className="w-8 text-gray-400">{index + 1}</div>
-                  <div className="flex-1">
-                    <div className="font-medium">{track.name}</div>
-                    <div className="text-sm text-gray-400">
-                      {track.artists.map((a) => a.name).join(", ")}
+              {tracks
+                .slice(currentTrackIndex) // Only show current and upcoming tracks
+                .map((track, index) => {
+                  const actualIndex = currentTrackIndex + index; // Calculate actual index for highlighting
+                  return (
+                    <div
+                      key={`${track.id}-${actualIndex}`}
+                      className={`flex items-center p-3 rounded-lg cursor-pointer hover:bg-white/5 ${
+                        actualIndex === currentTrackIndex ? "bg-white/10" : ""
+                      }`}
+                      onClick={() => {
+                        setCurrentTrackIndex(actualIndex);
+                        playTrack(track.id);
+                      }}
+                    >
+                      <div className="w-8 text-gray-400">{actualIndex + 1}</div>
+                      <div className="flex-1">
+                        <div className="font-medium">{track.name}</div>
+                        <div className="text-sm text-gray-400">
+                          {track.artists.map((a) => a.name).join(", ")}
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {Math.floor(track.duration_ms / 60000)}:
+                        {String(
+                          Math.floor((track.duration_ms % 60000) / 1000)
+                        ).padStart(2, "0")}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    {Math.floor(track.duration_ms / 60000)}:
-                    {String(
-                      Math.floor((track.duration_ms % 60000) / 1000)
-                    ).padStart(2, "0")}
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
         </div>
