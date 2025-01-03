@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 
+function FQDN() {
+  return process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+}
+
+function redirectUri() {
+  return `${FQDN()}/api/auth/callback`;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
@@ -24,7 +34,7 @@ export async function GET(request: Request) {
         body: new URLSearchParams({
           grant_type: "authorization_code",
           code,
-          redirect_uri: process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI!,
+          redirect_uri: redirectUri(),
         }),
       }
     );
@@ -33,7 +43,7 @@ export async function GET(request: Request) {
 
     // Redirect to dashboard with access token as a hash parameter
     return Response.redirect(
-      `${process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI?.replace(
+      `${redirectUri()?.replace(
         "/api/auth/callback",
         "/dashboard"
       )}#access_token=${data.access_token}`
