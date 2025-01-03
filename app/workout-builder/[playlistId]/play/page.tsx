@@ -125,16 +125,24 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
   const isPlayingNextTrack = useRef(false);
 
   // Add refs to access latest values in effects
-  const tracksRef = useRef<Track[]>([]);
-  const currentTrackIndexRef = useRef<number>(0);
+  const tracksRef = useRef<Track[]>(tracks);
+  const currentTrackIndexRef = useRef<number>(currentTrackIndex);
 
   // Update refs when values change
   useEffect(() => {
     tracksRef.current = tracks;
+    console.log('[Tracks Ref] Updated:', {
+      tracksLength: tracks.length,
+      refLength: tracksRef.current.length
+    });
   }, [tracks]);
 
   useEffect(() => {
     currentTrackIndexRef.current = currentTrackIndex;
+    console.log('[Track Index Ref] Updated:', {
+      currentIndex: currentTrackIndex,
+      refIndex: currentTrackIndexRef.current
+    });
   }, [currentTrackIndex]);
 
   // Initialize Spotify Web Playback SDK
@@ -167,13 +175,24 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
         isHandlingStateChange = true;
 
         try {
+          // Get latest values from refs
+          const currentIndex = currentTrackIndexRef.current;
+          const currentTracks = tracksRef.current;
+
+          // Add check for tracks
+          if (!currentTracks || currentTracks.length === 0) {
+            console.log('[Player State] No tracks available');
+            return;
+          }
+
           console.log('[Player State] Changed:', {
             paused: state.paused,
             position: state.position,
             duration: state.duration,
             track: state.track_window?.current_track?.id,
-            currentTrackIndex,
-            totalTracks: tracks.length
+            currentTrackIndex: currentIndex,
+            totalTracks: currentTracks.length,
+            tracksAvailable: !!currentTracks
           });
 
           // Update playback state first
@@ -202,37 +221,50 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
               }));
             }, 50);
           } else {
-            // Clear interval when paused
             if (progressInterval.current) {
               clearInterval(progressInterval.current);
             }
           }
 
           // Handle track end and next track
-          // Check if we're at the end of the track
           const isNearEnd = state.duration && (state.position >= state.duration - 1000);
-          if (
-            state.paused && 
-            (state.position === 0 || isNearEnd) && 
-            !isPlayingNextTrack.current &&
-            currentTrackIndex < tracks.length - 1
-          ) {
-            console.log('[Player State] Track ended or near end, advancing to next track', {
-              position: state.position,
-              duration: state.duration,
-              isNearEnd,
-              currentTrackIndex
-            });
+          const isTrackEnd = state.paused && (state.position === 0 || isNearEnd);
+          const canPlayNext = currentIndex < currentTracks.length - 1;
+          const shouldPlayNext = isTrackEnd && !isPlayingNextTrack.current && canPlayNext;
+
+          console.log('[Player State] Track end check:', {
+            isNearEnd,
+            isTrackEnd,
+            canPlayNext,
+            shouldPlayNext,
+            position: state.position,
+            duration: state.duration,
+            currentIndex,
+            totalTracks: currentTracks.length,
+            isPlayingNext: isPlayingNextTrack.current
+          });
+
+          if (shouldPlayNext) {
+            console.log('[Player State] Triggering next track');
+            isPlayingNextTrack.current = true;
             
             // Small delay to ensure clean transition
             setTimeout(async () => {
-              await playNextTrack();
+              try {
+                await playNextTrack();
+              } catch (error) {
+                console.error('[Auto Next] Error playing next track:', error);
+                isPlayingNextTrack.current = false;
+              }
             }, 500);
           }
+
         } catch (error) {
           console.error('[Player State] Error handling state change:', error);
         } finally {
-          isHandlingStateChange = false;
+          setTimeout(() => {
+            isHandlingStateChange = false;
+          }, 200);
         }
       };
 
@@ -265,15 +297,17 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
 
   // Load playlist tracks
   useEffect(() => {
-    const loadTracks = async () => {
+    const fetchTracks = async () => {
       try {
         const accessToken = localStorage.getItem("spotify_access_token");
         if (!accessToken) {
           router.push("/");
           return;
         }
-        const playlistId = (resolvedParams as { playlistId: string }).playlistId;
-
+        
+        console.log('[Fetch Tracks] Starting fetch');
+        
+        const playlistId = resolvedParams.playlistId;
         const response = await fetch(
           `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
           {
@@ -286,7 +320,7 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
         if (!response.ok) throw new Error("Failed to fetch tracks");
         const data = await response.json();
 
-        // Filter tracks with configured segments using the new storage format
+        // Filter tracks with configured segments
         const configuredTracks = data.items
           .map((item: any) => item.track)
           .filter((track: Track) => {
@@ -298,9 +332,22 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
             return segments.length > 0;
           });
 
+        console.log('[Fetch Tracks] Configured tracks:', {
+          total: configuredTracks.length,
+          tracks: configuredTracks.map(t => t.id)
+        });
+
+        // Update ref first, then state
+        tracksRef.current = configuredTracks;
         setTracks(configuredTracks);
 
-        // Load initial track's data using the new format
+        // Log the current state of refs
+        console.log('[Fetch Tracks] Updated refs:', {
+          tracksRefLength: tracksRef.current.length,
+          currentTrackIndexRef: currentTrackIndexRef.current
+        });
+
+        // Load initial track's data
         if (configuredTracks.length > 0) {
           const initialTrack = configuredTracks[0];
           const { segments, bpm } = loadTrackData(playlistId, initialTrack.id);
@@ -310,14 +357,16 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
           }
         }
 
-        setLoading(false);
       } catch (error) {
-        console.error("Error loading tracks:", error);
-        setError(error instanceof Error ? error.message : "An error occurred");
+        console.error('[Fetch Tracks] Error:', error);
+        setError('Failed to load tracks');
+      } finally {
+        setLoading(false);
       }
     };
-    loadTracks();
-  }, [resolvedParams.playlistId, router]);
+
+    fetchTracks();
+  }, [resolvedParams.playlistId]);
 
   // Handle track changes
   useEffect(() => {
@@ -386,46 +435,41 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
 
   const playNextTrack = async () => {
     console.log('[Next Track] Starting with:', {
-      currentIndex: currentTrackIndex,
+      currentIndex: currentTrackIndexRef.current,
       isPlayingNext: isPlayingNextTrack.current,
-      totalTracks: tracks.length
+      totalTracks: tracksRef.current.length,
+      tracks: tracksRef.current.map(t => t.id)
     });
 
-    // Prevent multiple rapid calls
-    if (isPlayingNextTrack.current) {
-      console.log('[Next Track] Already playing next track, ignoring');
-      return;
-    }
-
-    // Check if we can move to next track
-    if (currentTrackIndex >= tracks.length - 1) {
-      console.log('[Next Track] Already at last track');
-      return;
-    }
-
     try {
-      isPlayingNextTrack.current = true;
-      const nextIndex = currentTrackIndex + 1;
+      // Check if we can move to next track
+      if (currentTrackIndexRef.current >= tracksRef.current.length - 1) {
+        console.log('[Next Track] Already at last track');
+        return;
+      }
+
+      const nextIndex = currentTrackIndexRef.current + 1;
+      const nextTrack = tracksRef.current[nextIndex];
       
       console.log('[Next Track] Playing track:', {
-        fromIndex: currentTrackIndex,
+        fromIndex: currentTrackIndexRef.current,
         toIndex: nextIndex,
-        nextTrackId: tracks[nextIndex]?.id
+        nextTrackId: nextTrack?.id
       });
 
-      // Update index first
+      // Update index
       setCurrentTrackIndex(nextIndex);
       
       // Small delay to ensure state is updated
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Then play the track
-      await playTrack(tracks[nextIndex].id);
+      // Play the track
+      await playTrack(nextTrack.id);
 
     } catch (error) {
       console.error('[Next Track] Error:', error);
+      throw error;
     } finally {
-      // Reset the flag after a delay to prevent rapid consecutive calls
       setTimeout(() => {
         isPlayingNextTrack.current = false;
         console.log('[Next Track] Reset playing next flag');
