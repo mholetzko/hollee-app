@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react';
+import { Segment } from '../types';
+import { SEGMENT_COLORS } from '../constants';
 
 interface BeatCountdownProps {
-  currentPosition: number
-  nextSegmentStart: number
-  bpm: number
-  nextSegment?: {
-    title: string
-    type: string
-  }
+  currentPosition: number;
+  nextSegmentStart: number;
+  bpm: number;
+  nextSegment?: Segment;
 }
 
 export const BeatCountdown = ({ 
@@ -16,45 +15,79 @@ export const BeatCountdown = ({
   bpm,
   nextSegment 
 }: BeatCountdownProps) => {
-  const timeUntilNext = nextSegmentStart - currentPosition
-  const beatsUntilNext = Math.ceil(timeUntilNext / (60000 / bpm))
-  const [beatFlash, setBeatFlash] = useState(false)
-  
-  useEffect(() => {
-    const beatInterval = 60000 / bpm
-    const currentBeat = Math.floor(currentPosition / beatInterval)
-    
-    setBeatFlash(true)
-    const timeout = setTimeout(() => setBeatFlash(false), 100)
-    
-    return () => clearTimeout(timeout)
-  }, [Math.floor(currentPosition / (60000 / bpm)), bpm])
+  const timeToNext = nextSegmentStart - currentPosition;
+  const beatsToNext = Math.ceil((timeToNext / 60000) * bpm);
+
+  const getCountdownColor = (beats: number) => {
+    if (beats <= 4) return 'text-red-400';
+    if (beats <= 8) return 'text-yellow-400';
+    return 'text-white';
+  };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-black/20 rounded-lg relative overflow-hidden">
-      <div 
-        className={`absolute inset-0 bg-white/5 transition-opacity duration-200
-          ${beatFlash ? 'opacity-100' : 'opacity-0'}`}
-      />
-      
-      <div 
-        className={`text-7xl font-mono font-bold mb-2 transition-all duration-100
-          ${beatsUntilNext <= 4 ? 'text-red-400' : 'text-white/90'}
-          ${beatFlash ? 'scale-110' : 'scale-100'}`}
-      >
-        {beatsUntilNext}
-      </div>
-      
-      <div className="text-sm text-gray-400 text-center">
-        <div>beats until</div>
-        <div className="font-medium text-white/80">
-          {nextSegment ? nextSegment.title : 'end'}
-        </div>
+    <div className="flex-1 p-6 bg-black/20 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div 
+          className={`absolute w-64 h-64 rounded-full border-4 opacity-20
+            ${getCountdownColor(beatsToNext)}
+            animate-ping-slow`}
+        />
+        <div 
+          className={`absolute w-48 h-48 rounded-full border-2 opacity-30
+            ${getCountdownColor(beatsToNext)}
+            animate-spin-slow`}
+        />
       </div>
 
-      <div className="absolute bottom-2 right-2 text-xs text-gray-500">
-        {Math.round(bpm)} BPM
+      {/* Content */}
+      <div className="relative z-10 text-center">
+        <div className={`text-8xl font-bold font-mono mb-2 ${getCountdownColor(beatsToNext)}`}>
+          {beatsToNext}
+        </div>
+        <div className="text-xl text-gray-400 mb-4">
+          {formatTime(nextSegmentStart - currentPosition)} left
+        </div>
+        {nextSegment && (
+          <div className={`text-lg px-3 py-1 rounded-full backdrop-blur-sm
+            ${SEGMENT_COLORS[nextSegment.type]} 
+            ${getIntensityColor(nextSegment.intensity)}
+            shadow-glow`}
+          >
+            Next: {WORKOUT_LABELS[nextSegment.type]}
+            {nextSegment.intensity === -1 ? ' BURN!' : ` ${nextSegment.intensity}%`}
+          </div>
+        )}
       </div>
     </div>
-  )
-}
+  );
+};
+
+// Helper function to format time
+const formatTime = (ms: number) => {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`;
+};
+
+// Helper function for intensity colors
+const getIntensityColor = (intensity: number) => {
+  if (intensity === -1) return 'bg-red-500/50'; // BURN mode
+  if (intensity > 90) return 'bg-red-500/50';    // 90-100%
+  if (intensity > 75) return 'bg-yellow-500/50';  // 75-90%
+  if (intensity > 55) return 'bg-green-500/50';   // 55-75%
+  if (intensity > 25) return 'bg-blue-500/50';    // 25-55%
+  return 'bg-white/50';                           // 0-25%
+};
+
+// Workout labels
+const WORKOUT_LABELS: Record<string, string> = {
+  PLS: 'PLS',
+  SEATED_ROAD: 'SeRo',
+  SEATED_CLIMB: 'SeCl',
+  STANDING_CLIMB: 'StCl',
+  STANDING_JOGGING: 'StJo',
+  JUMPS: 'Jump',
+  WAVES: 'Wave',
+  PUSHES: 'Push',
+};

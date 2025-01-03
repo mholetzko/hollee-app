@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { use } from 'react'
 import { PlayIcon, PauseIcon, StopIcon, ArrowLeftIcon } from '@radix-ui/react-icons'
+import { getStorageKey } from '../../types'
 
 // Add type for Spotify Player
 declare global {
   interface Window {
     onSpotifyWebPlaybackSDKReady: () => void
-    Spotify: any
+    Spotify: { Player: any }
   }
 }
 
@@ -200,24 +201,13 @@ const BPMVisualization = ({
 
 // Add this helper function to try extracting BPM from title
 const extractBPMFromTitle = (title: string): number | null => {
-  // Common patterns: "(123 BPM)", "123BPM", "123 BPM", "-123BPM"
-  const bpmPatterns = [
-    /\((\d{2,3})\s*BPM\)/i,  // (123 BPM)
-    /[-\s](\d{2,3})\s*BPM/i, // -123 BPM or 123 BPM
-    /(\d{2,3})BPM/i,         // 123BPM
-  ]
-
-  for (const pattern of bpmPatterns) {
-    const match = title.match(pattern)
-    if (match && match[1]) {
-      const bpm = parseInt(match[1])
-      if (bpm >= 60 && bpm <= 200) { // Reasonable BPM range
-        return bpm
-      }
-    }
+  const match = title.match(/\b(\d{2,3})\s*(?:bpm|BPM)\b/);
+  if (match) {
+    const bpm = parseInt(match[1]);
+    if (bpm >= 60 && bpm <= 200) return bpm;
   }
-  return null
-}
+  return null;
+};
 
 // Keep these outside the component
 interface TrackBPM {
@@ -229,7 +219,7 @@ interface TrackBPM {
 interface SongBPMData {
   songId: string
   bpm: number
-  source: 'manual' | 'title' | 'database'
+  source: 'manual' | 'title' | 'database' | 'youtube'
 }
 
 // Add a simple database of known BPMs for common workout songs
@@ -240,77 +230,139 @@ const KNOWN_BPMS: Record<string, number> = {
   // Add more as needed
 }
 
-// Update the BPM extraction to use multiple sources
-const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
-  // 0. Check localStorage first
-  const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}')
-  if (savedBPMs[track.id]) {
-    return {
-      songId: track.id,
-      bpm: savedBPMs[track.id],
-      source: 'database'
+// Add a helper function for localStorage BPM operations
+const BPMStorage = {
+  getKey: (trackId: string) => `bpm_${trackId}`,
+  
+  save: (trackId: string, bpm: number, source: string) => {
+    console.log('[BPM Storage] Saving BPM:', { trackId, bpm, source });
+    try {
+      const data = { bpm, source, timestamp: Date.now() };
+      localStorage.setItem(BPMStorage.getKey(trackId), JSON.stringify(data));
+      console.log('[BPM Storage] Successfully saved BPM data');
+    } catch (error) {
+      console.error('[BPM Storage] Error saving BPM:', error);
+    }
+  },
+  
+  load: (trackId: string) => {
+    console.log('[BPM Storage] Loading BPM for track:', trackId);
+    try {
+      const stored = localStorage.getItem(BPMStorage.getKey(trackId));
+      if (stored) {
+        const data = JSON.parse(stored);
+        console.log('[BPM Storage] Found stored BPM:', data);
+        return data;
+      }
+      console.log('[BPM Storage] No stored BPM found');
+      return null;
+    } catch (error) {
+      console.error('[BPM Storage] Error loading BPM:', error);
+      return null;
     }
   }
+};
 
-  // 1. Try to extract from title
-  const titleBPM = extractBPMFromTitle(track.name)
-  if (titleBPM) {
+// Add a helper function to normalize BPM format
+const normalizeBPM = (bpm: number | { tempo: number, isManual: boolean } | null) => {
+  if (!bpm) return null;
+  
+  if (typeof bpm === 'number') {
     return {
+      tempo: bpm,
+      isManual: true
+    };
+  }
+  
+  return bpm;
+};
+
+// Update the BPM extraction to use the new storage
+const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
+  console.log('[BPM Extract] Starting BPM extraction for track:', track.name);
+
+  // 1. Check localStorage first
+  const stored = BPMStorage.load(track.id);
+  if (stored) {
+    console.log('[BPM Extract] Using stored BPM:', stored);
+    return {
+      songId: track.id,
+      bpm: stored.bpm,
+      source: stored.source as 'manual' | 'title' | 'database' | 'youtube'
+    };
+  }
+
+  // 2. Try to extract from title
+  const titleBPM = extractBPMFromTitle(track.name);
+  if (titleBPM) {
+    console.log('[BPM Extract] Found BPM in title:', titleBPM);
+    const result = {
       songId: track.id,
       bpm: titleBPM,
-      source: 'title'
-    }
+      source: 'title' as const
+    };
+    BPMStorage.save(track.id, titleBPM, 'title');
+    return result;
   }
 
-  // 2. Try YouTube search
+  // 3. Try YouTube search
   try {
-    const query = `${track.name} ${track.artists[0].name} BPM`
+    console.log('[BPM Extract] Searching YouTube for BPM');
+    const query = `${track.name} ${track.artists[0].name} BPM`;
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/search?` +
       `part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5` +
       `&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
-    )
+    );
 
     if (response.ok) {
-      const data = await response.json()
+      const data = await response.json();
+      console.log('[BPM Extract] YouTube search results:', data.items.length);
       
-      // Look for BPM in video titles and descriptions
       for (const item of data.items) {
-        const title = item.snippet.title
-        const description = item.snippet.description
+        const title = item.snippet.title;
+        const description = item.snippet.description;
         
         // Check title first
-        const titleMatch = extractBPMFromTitle(title)
+        const titleMatch = extractBPMFromTitle(title);
         if (titleMatch) {
+          console.log('[BPM Extract] Found BPM in YouTube title:', titleMatch);
+          BPMStorage.save(track.id, titleMatch, 'youtube');
           return {
             songId: track.id,
             bpm: titleMatch,
-            source: 'database'
-          }
+            source: 'youtube'
+          };
         }
 
         // Then check description
-        const descriptionMatch = extractBPMFromTitle(description)
+        const descriptionMatch = extractBPMFromTitle(description);
         if (descriptionMatch) {
+          console.log('[BPM Extract] Found BPM in YouTube description:', descriptionMatch);
+          BPMStorage.save(track.id, descriptionMatch, 'youtube');
           return {
             songId: track.id,
             bpm: descriptionMatch,
-            source: 'database'
-          }
+            source: 'youtube'
+          };
         }
       }
+      console.log('[BPM Extract] No BPM found in YouTube results');
     }
   } catch (error) {
-    console.error('Error fetching from YouTube:', error)
+    console.error('[BPM Extract] YouTube search error:', error);
   }
 
-  // 3. If all else fails, return default
+  // 4. If all else fails, return default
+  console.log('[BPM Extract] Using default BPM: 128');
+  const defaultBPM = 128;
+  BPMStorage.save(track.id, defaultBPM, 'manual');
   return {
     songId: track.id,
-    bpm: 128,
+    bpm: defaultBPM,
     source: 'manual'
-  }
-}
+  };
+};
 
 // Add this for the metronome sound
 const useMetronomeSound = () => {
@@ -582,28 +634,135 @@ const findAdjacentSegments = (segments: Segment[], currentId: string) => {
   }
 }
 
-// Add a helper function to get/set segments from localStorage
-const getStoredSegments = (songId: string): Segment[] => {
-  if (typeof window === 'undefined') {
-    console.log('getStoredSegments: Window not defined')
-    return []
+// Add new storage functions
+const loadTrackData = (playlistId: string, songId: string) => {
+  if (typeof window === 'undefined') return { segments: [], bpm: null };
+
+  // Load segments
+  const segmentsStored = localStorage.getItem(
+    getStorageKey(playlistId, songId, 'segments')
+  );
+  const segments = segmentsStored ? JSON.parse(segmentsStored) : [];
+
+  // Load BPM
+  const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
+  const bpmValue = savedBPMs[`${playlistId}_${songId}`];
+  const bpm = normalizeBPM(bpmValue);
+
+  console.log('[Load Track Data] Loaded data:', {
+    segments: segments.length,
+    originalBPM: bpmValue,
+    normalizedBPM: bpm
+  });
+
+  return { segments, bpm };
+};
+
+// Update the saveTrackData function
+const saveTrackData = (
+  playlistId: string, 
+  songId: string, 
+  segments: Segment[], 
+  bpm: TrackBPM
+) => {
+  console.log('[Save Track Data] Saving:', { playlistId, songId, segments: segments.length, bpm });
+  
+  try {
+    // Save segments
+    localStorage.setItem(
+      getStorageKey(playlistId, songId, 'segments'),
+      JSON.stringify(segments)
+    );
+
+    // Save BPM as a simple number for compatibility
+    const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
+    savedBPMs[`${playlistId}_${songId}`] = bpm.tempo; // Save just the number
+    localStorage.setItem('savedBPMs', JSON.stringify(savedBPMs));
+
+    console.log('[Save Track Data] Successfully saved track data and BPM:', {
+      bpm: bpm.tempo,
+      savedBPMs
+    });
+  } catch (error) {
+    console.error('[Save Track Data] Error saving track data:', error);
   }
-  const stored = localStorage.getItem(`segments_${songId}`)
-  console.log('getStoredSegments:', { songId, stored })
-  const segments = stored ? JSON.parse(stored) : []
-  console.log('Parsed segments:', segments)
-  return segments
-}
+};
 
-const saveSegmentsToStorage = (songId: string, segments: Segment[]) => {
-  console.log('saveSegmentsToStorage:', { songId, segments })
-  localStorage.setItem(`segments_${songId}`, JSON.stringify(segments))
-}
+// Add a function to export workout data
+const exportWorkoutData = (playlistId: string, songId: string) => {
+  try {
+    console.log('[Export] Starting export for:', { playlistId, songId });
+    
+    // Get segments
+    const segments = JSON.parse(
+      localStorage.getItem(getStorageKey(playlistId, songId, 'segments')) || '[]'
+    );
 
-// Add a loading state component
-const LoadingState = ({ songId }: { songId: string }) => {
+    // Get BPM from savedBPMs
+    const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
+    const bpmValue = savedBPMs[`${playlistId}_${songId}`];
+    
+    // Normalize BPM format
+    const bpm = normalizeBPM(bpmValue);
+
+    console.log('[Export] Found BPM:', { bpmValue, normalizedBPM: bpm });
+
+    const exportData = {
+      segments,
+      bpm,
+      playlistId,
+      songId,
+      exportedAt: new Date().toISOString()
+    };
+
+    console.log('[Export] Final export data:', exportData);
+    return exportData;
+  } catch (error) {
+    console.error('[Export] Error exporting workout data:', error);
+    return null;
+  }
+};
+
+// Add a function to import workout data
+const importWorkoutData = (data: any) => {
+  try {
+    console.log('[Import] Starting import with data:', data);
+    
+    if (data.segments && data.songId) {
+      // Save segments
+      localStorage.setItem(
+        getStorageKey(data.playlistId, data.songId, 'segments'),
+        JSON.stringify(data.segments)
+      );
+
+      // Save BPM as a simple number
+      if (data.bpm) {
+        const bpmValue = typeof data.bpm === 'number' ? data.bpm : data.bpm.tempo;
+        const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
+        savedBPMs[`${data.playlistId}_${data.songId}`] = bpmValue;
+        localStorage.setItem('savedBPMs', JSON.stringify(savedBPMs));
+
+        console.log('[Import] Saved BPM:', {
+          originalBPM: data.bpm,
+          savedValue: bpmValue
+        });
+      }
+
+      console.log('[Import] Successfully imported workout data');
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('[Import] Error importing workout data:', error);
+    return false;
+  }
+};
+
+// Update the LoadingState component to use the new storage format
+const LoadingState = ({ songId, playlistId }: { songId: string, playlistId: string }) => {
   // Check if we have saved segments while showing loading state
-  const hasSavedConfig = getStoredSegments(songId).length > 0
+  const { segments } = loadTrackData(playlistId, songId);
+  const hasSavedConfig = segments.length > 0;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
@@ -612,18 +771,16 @@ const LoadingState = ({ songId }: { songId: string }) => {
         {hasSavedConfig ? 'Loading saved workout configuration...' : 'Loading track...'}
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default function SongSegmentEditor({ params }: { params: any }) {
   const resolvedParams = use(params)
   const [track, setTrack] = useState<Track | null>(null)
   const [segments, setSegments] = useState<Segment[]>(() => {
-    // Initialize segments state with stored data immediately
-    if (typeof window !== 'undefined') {
-      return getStoredSegments(resolvedParams.songId)
-    }
-    return []
+    if (typeof window === 'undefined') return [];
+    const { segments } = loadTrackData(resolvedParams.playlistId, resolvedParams.songId);
+    return segments;
   })
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -646,30 +803,72 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   // Add state for tracking progress
   const progressInterval = useRef<NodeJS.Timeout>()
 
-  // Move trackBPM state inside the component
-  const [trackBPM, setTrackBPM] = useState<TrackBPM>({ 
-    tempo: 128,
-    isManual: true 
-  })
+  // Update initial BPM state
+  const [trackBPM, setTrackBPM] = useState<TrackBPM>(() => {
+    if (typeof window === 'undefined') {
+      console.log('[BPM Init] Window not defined');
+      return { tempo: 128, isManual: true };
+    }
+    
+    console.log('[BPM Init] Starting BPM initialization for:', {
+      playlistId: resolvedParams.playlistId,
+      songId: resolvedParams.songId
+    });
+    
+    // Try to load from storage first
+    const { bpm } = loadTrackData(resolvedParams.playlistId, resolvedParams.songId);
+    console.log('[BPM Init] Loaded data:', { bpm });
+    
+    if (bpm) {
+      console.log('[BPM Init] Using stored BPM:', bpm);
+      return bpm;
+    }
 
-  // Update the BPMInput component styling
+    // If no stored BPM, try to extract from title
+    const bpmFromTitle = extractBPMFromTitle(track?.name || '');
+    if (bpmFromTitle) {
+      console.log('[BPM Init] Using BPM from title:', bpmFromTitle);
+      return { tempo: bpmFromTitle, isManual: false };
+    }
+    
+    // Only use 128 if we have no other source
+    console.log('[BPM Init] No BPM sources found, using default 128');
+    return { tempo: 128, isManual: false };
+  });
+
+  // Add logging to setTrackBPM calls
+  const wrappedSetTrackBPM = (newBPM: TrackBPM) => {
+    console.log('[BPM Update] Setting new BPM:', {
+      from: trackBPM,
+      to: newBPM,
+      stack: new Error().stack
+    });
+    setTrackBPM(newBPM);
+  };
+
+  // Update the BPMInput component
   const BPMInput = ({ value, onChange }: { 
     value: number, 
     onChange: (bpm: number) => void 
   }) => {
-    const handleSaveBPM = async () => {
-      if (!track) return
-      const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}')
-      savedBPMs[track.id] = value
-      localStorage.setItem('savedBPMs', JSON.stringify(savedBPMs))
-    }
+    const handleBPMChange = (newValue: number) => {
+      if (isNaN(newValue)) return;
+      
+      console.log('[BPM Input] Updating BPM:', {
+        oldValue: value,
+        newValue,
+        track: track?.id
+      });
 
-    const getSongBPMUrl = () => {
-      if (!track) return '#'
-      const artist = track.artists[0]?.name.toLowerCase().replace(/\s+/g, '-')
-      const song = track.name.toLowerCase().replace(/\s+/g, '-')
-      return `https://songbpm.com/@${artist}/${song}`
-    }
+      // Update parent state
+      onChange(newValue);
+
+      // Save to storage
+      if (track) {
+        BPMStorage.save(track.id, newValue, 'manual');
+        console.log('[BPM Input] Saved new manual BPM');
+      }
+    };
 
     return (
       <div className="flex flex-col items-center gap-3 w-full">
@@ -679,19 +878,13 @@ export default function SongSegmentEditor({ params }: { params: any }) {
             min="60"
             max="200"
             value={value}
-            onChange={(e) => onChange(parseInt(e.target.value))}
+            onChange={(e) => handleBPMChange(parseInt(e.target.value))}
             className="bg-white/5 rounded px-4 py-3 w-32 text-center text-2xl font-mono"
           />
           <span className="text-xl text-gray-400 font-mono">BPM</span>
-          <button
-            onClick={handleSaveBPM}
-            className="text-sm bg-white/10 px-4 py-2 rounded hover:bg-white/20 transition-colors"
-          >
-            Save
-          </button>
         </div>
         <a 
-          href={getSongBPMUrl()} 
+          href={track ? `https://songbpm.com/@${track.artists[0]?.name.toLowerCase().replace(/\s+/g, '-')}/${track.name.toLowerCase().replace(/\s+/g, '-')}` : '#'} 
           target="_blank" 
           rel="noopener noreferrer"
           className="text-sm text-blue-400 hover:text-blue-300 underline"
@@ -699,8 +892,8 @@ export default function SongSegmentEditor({ params }: { params: any }) {
           Look up on SongBPM
         </a>
       </div>
-    )
-  }
+    );
+  };
 
   // Initialize Spotify Web Playback SDK
   useEffect(() => {
@@ -783,16 +976,18 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     }
   }, [track])
 
-  // Remove the segments loading effect and keep only the track fetching
+  // Update track loading effect
   useEffect(() => {
     const fetchTrack = async () => {
-      console.log('Fetching track data...')
+      console.log('[Track Load] Starting fetch:', {
+        songId: resolvedParams.songId
+      });
+      
       try {
-        const accessToken = localStorage.getItem('spotify_access_token')
+        const accessToken = localStorage.getItem('spotify_access_token');
         if (!accessToken) {
-          console.log('No access token, redirecting...')
-          router.push('/')
-          return
+          router.push('/');
+          return;
         }
 
         const response = await fetch(
@@ -802,67 +997,96 @@ export default function SongSegmentEditor({ params }: { params: any }) {
               Authorization: `Bearer ${accessToken}`,
             },
           }
-        )
+        );
 
         if (!response.ok) {
-          console.error('Track fetch failed:', {
-            status: response.status,
-            statusText: response.statusText
-          })
-          throw new Error('Failed to fetch track')
+          throw new Error('Failed to fetch track');
         }
 
-        const data = await response.json()
-        console.log('Track data received:', data)
-        setTrack(data)
+        const data = await response.json();
+        setTrack(data);
+
+        // Try to load BPM from storage first
+        const storedBPM = BPMStorage.load(data.id);
+        if (storedBPM) {
+          console.log('[Track Load] Using stored BPM:', storedBPM);
+          wrappedSetTrackBPM({
+            tempo: storedBPM.bpm,
+            isManual: storedBPM.source === 'manual'
+          });
+        } else {
+          // If no stored BPM, extract from sources
+          console.log('[Track Load] No stored BPM, extracting from sources');
+          const bpmData = await getBPMFromSources(data);
+          wrappedSetTrackBPM({
+            tempo: bpmData.bpm,
+            isManual: bpmData.source === 'manual'
+          });
+        }
       } catch (error) {
-        console.error('Error fetching track:', error)
-        setError(error instanceof Error ? error.message : 'An error occurred')
+        console.error('[Track Load] Error:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchTrack()
-  }, [resolvedParams.songId, router])
+    fetchTrack();
+  }, [resolvedParams.songId, router]);
 
-  // Keep only the segments saving effect
+  // Update the save effect
   useEffect(() => {
-    if (resolvedParams?.songId) {
-      console.log('Saving segments:', { songId: resolvedParams.songId, segments })
-      saveSegmentsToStorage(resolvedParams.songId, segments)
-    }
-  }, [segments, resolvedParams?.songId])
+    if (!track || !trackBPM) return;
+    
+    console.log('[Save Effect] Saving track data:', {
+      trackId: track.id,
+      segments: segments.length,
+      bpm: trackBPM,
+      trigger: 'segments or trackBPM change'
+    });
+    
+    // Debounce the save to prevent too many writes
+    const timeoutId = setTimeout(() => {
+      saveTrackData(
+        resolvedParams.playlistId, 
+        track.id, 
+        segments, 
+        trackBPM
+      );
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [segments, track, resolvedParams.playlistId, trackBPM]);
 
   // Add logging to addSegment
-  const addSegment = () => {
-    if (!track) {
-      console.log('Cannot add segment: track not loaded')
-      return
-    }
+  const addSegment = (startTime: number) => {
+    const newSegments = [
+      ...segments,
+      {
+        id: crypto.randomUUID(),
+        startTime,
+        endTime: Math.min(startTime + 30000, track?.duration_ms || 0),
+        title: `Segment ${segments.length + 1}`,
+        type: 'SEATED_ROAD',
+        intensity: 55
+      }
+    ];
+    setSegments(newSegments);
+    // Save is handled by the useEffect
+  };
 
-    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime)
-    const lastSegment = sortedSegments[sortedSegments.length - 1]
-    const startTime = lastSegment ? lastSegment.endTime : 0
-    
-    if (startTime >= track.duration_ms) {
-      console.log('Cannot add segment: would exceed track duration')
-      return
-    }
+  const updateSegment = (id: string, updates: Partial<Segment>) => {
+    const newSegments = segments.map(s => 
+      s.id === id ? { ...s, ...updates } : s
+    );
+    setSegments(newSegments);
+    // Save is handled by the useEffect
+  };
 
-    const newSegment: Segment = {
-      id: crypto.randomUUID(),
-      startTime,
-      endTime: Math.min(startTime + 30000, track.duration_ms),
-      title: `Segment ${segments.length + 1}`,
-      type: 'SEATED_ROAD',
-      intensity: 55
-    }
-
-    console.log('Adding new segment:', newSegment)
-    const updatedSegments = [...segments, newSegment]
-    setSegments(updatedSegments)
-  }
+  const deleteSegment = (id: string) => {
+    const newSegments = segments.filter(s => s.id !== id);
+    setSegments(newSegments);
+    // Save is handled by the useEffect
+  };
 
   const formatDuration = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
@@ -1069,7 +1293,10 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   }
 
   if (loading || !track) {
-    return <LoadingState songId={resolvedParams.songId} />
+    return <LoadingState 
+      songId={resolvedParams.songId} 
+      playlistId={resolvedParams.playlistId} 
+    />;
   }
 
   return (

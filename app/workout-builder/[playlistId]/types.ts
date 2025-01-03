@@ -39,4 +39,9 @@ export interface PlaybackState {
 export interface TrackBPM {
   tempo: number
   isManual: boolean
-} 
+}
+
+// Add a helper function to generate storage keys
+export const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm') => {
+  return `playlist_${playlistId}_${type}_${songId}`;
+}; 

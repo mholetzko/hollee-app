@@ -14,16 +14,19 @@ interface Track {
   album?: { images?: { url: string }[] }
 }
 
-const hasSavedSegments = (songId: string): boolean => {
-  if (typeof window === 'undefined') return false
-  const stored = localStorage.getItem(`segments_${songId}`)
-  return stored ? JSON.parse(stored).length > 0 : false
-}
+const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm') => {
+  return `playlist_${playlistId}_${type}_${songId}`;
+};
 
-const getAllWorkoutConfigs = (tracks: Track[]) => {
-  if (typeof window === 'undefined') return {}
+const hasSavedSegments = (playlistId: string, songId: string): boolean => {
+  if (typeof window === 'undefined') return false;
+  const stored = localStorage.getItem(getStorageKey(playlistId, songId, 'segments'));
+  return stored ? JSON.parse(stored).length > 0 : false;
+};
+
+const getAllWorkoutConfigs = (playlistId: string, tracks: Track[]) => {
+  if (typeof window === 'undefined') return {};
   
-  // Create a map of all tracks first
   const configs: Record<string, {
     track: {
       id: string
@@ -36,11 +39,12 @@ const getAllWorkoutConfigs = (tracks: Track[]) => {
       isManual: boolean
     } | null
     segments: any[]
-  }> = {}
+  }> = {};
 
-  // First add all tracks (including those without configs)
+  // First add all tracks
   tracks.forEach(track => {
-    configs[track.id] = {
+    const key = `${playlistId}_${track.id}`;
+    configs[key] = {
       track: {
         id: track.id,
         name: track.name,
@@ -49,72 +53,39 @@ const getAllWorkoutConfigs = (tracks: Track[]) => {
       },
       bpm: null,
       segments: []
-    }
-  })
+    };
+  });
 
-  // Then add any saved segments and BPM
+  // Then add saved segments
   for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key?.startsWith('segments_')) {
-      const songId = key.replace('segments_', '')
-      const segments = JSON.parse(localStorage.getItem(key) || '[]')
-      if (configs[songId]) {
-        configs[songId].segments = segments
+    const key = localStorage.key(i);
+    if (key?.startsWith(`playlist_${playlistId}_segments_`)) {
+      const songId = key.replace(`playlist_${playlistId}_segments_`, '');
+      const segments = JSON.parse(localStorage.getItem(key) || '[]');
+      const configKey = `${playlistId}_${songId}`;
+      if (configs[configKey]) {
+        configs[configKey].segments = segments;
       }
     }
   }
 
   // Add saved BPMs
-  const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}')
-  Object.entries(savedBPMs).forEach(([songId, bpm]) => {
-    if (configs[songId]) {
-      configs[songId].bpm = {
-        tempo: Number(bpm),
-        isManual: true
+  const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
+  Object.entries(savedBPMs).forEach(([key, bpm]) => {
+    if (key.startsWith(`${playlistId}_`)) {
+      const songId = key.replace(`${playlistId}_`, '');
+      const configKey = `${playlistId}_${songId}`;
+      if (configs[configKey]) {
+        configs[configKey].bpm = {
+          tempo: Number(bpm),
+          isManual: true
+        };
       }
     }
-  })
+  });
 
-  return configs
-}
-
-const importConfigs = async (file: File) => {
-  try {
-    const text = await file.text()
-    const data = JSON.parse(text)
-    
-    // Validate the imported data structure
-    if (!data.tracks || typeof data.tracks !== 'object') {
-      throw new Error('Invalid configuration file format')
-    }
-
-    // Import track configurations
-    Object.entries(data.tracks).forEach(([songId, config]: [string, any]) => {
-      // Save segments if they exist
-      if (config.segments && Array.isArray(config.segments)) {
-        localStorage.setItem(`segments_${songId}`, JSON.stringify(config.segments))
-      }
-      
-      // Save BPM if it exists
-      if (config.bpm && typeof config.bpm.tempo === 'number') {
-        const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}')
-        savedBPMs[songId] = config.bpm.tempo
-        localStorage.setItem('savedBPMs', JSON.stringify(savedBPMs))
-      }
-    })
-
-    return {
-      success: true,
-      message: 'Configurations imported successfully'
-    }
-  } catch (error) {
-    console.error('Import error:', error)
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to import configurations'
-    }
-  }
-}
+  return configs;
+};
 
 export default function WorkoutBuilder({ params }: { params: Promise<{ playlistId: string }> }) {
   const resolvedParams = use(params)
@@ -125,6 +96,45 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
     type: 'success' | 'error'
     text: string
   } | null>(null)
+
+  const importConfigs = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.tracks || typeof data.tracks !== 'object') {
+        throw new Error('Invalid configuration file format');
+      }
+
+      Object.entries(data.tracks).forEach(([key, config]: [string, any]) => {
+        const songId = key.includes('_') ? key.split('_')[1] : key;
+        
+        if (config.segments && Array.isArray(config.segments)) {
+          localStorage.setItem(
+            getStorageKey(resolvedParams.playlistId, songId, 'segments'),
+            JSON.stringify(config.segments)
+          );
+        }
+        
+        if (config.bpm && typeof config.bpm.tempo === 'number') {
+          const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
+          savedBPMs[`${resolvedParams.playlistId}_${songId}`] = config.bpm.tempo;
+          localStorage.setItem('savedBPMs', JSON.stringify(savedBPMs));
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Configurations imported successfully'
+      };
+    } catch (error) {
+      console.error('Import error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to import configurations'
+      };
+    }
+  };
 
   useEffect(() => {
     const fetchPlaylistTracks = async () => {
@@ -167,25 +177,24 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
   }
 
   const handleExport = () => {
-    const configs = getAllWorkoutConfigs(tracks)
-    const fileName = 'workout-configs.json'
+    const configs = getAllWorkoutConfigs(resolvedParams.playlistId, tracks);
+    const fileName = 'workout-configs.json';
     const json = JSON.stringify({
       exportDate: new Date().toISOString(),
       playlistId: resolvedParams.playlistId,
       tracks: configs
-    }, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const href = URL.createObjectURL(blob)
+    }, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const href = URL.createObjectURL(blob);
     
-    // Create and click a temporary download link
-    const link = document.createElement('a')
-    link.href = href
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(href)
-  }
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -231,7 +240,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold">Workout Builder</h1>
-            {tracks.some(track => hasSavedSegments(track.id)) && (
+            {tracks.some(track => hasSavedSegments(resolvedParams.playlistId, track.id)) && (
               <Button
                 variant="default"
                 size="lg"
@@ -328,7 +337,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
         <div className="grid gap-4">
           {tracks.map((track) => {
-            const hasConfig = hasSavedSegments(track.id)
+            const hasConfig = hasSavedSegments(resolvedParams.playlistId, track.id)
             
             return (
               <Link
