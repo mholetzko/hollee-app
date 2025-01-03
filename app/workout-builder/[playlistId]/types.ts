@@ -45,3 +45,14 @@ export interface TrackBPM {
 export const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm') => {
   return `playlist_${playlistId}_${type}_${songId}`;
 };
+
+export const WORKOUT_LABELS: Record<WorkoutType, string> = {
+  PLS: 'PLS',
+  SEATED_ROAD: 'SeRo',
+  SEATED_CLIMB: 'SeCl',
+  STANDING_CLIMB: 'StCl',
+  STANDING_JOGGING: 'StJo',
+  JUMPS: 'Jump',
+  WAVES: 'Wave',
+  PUSHES: 'Push',
+} as const;

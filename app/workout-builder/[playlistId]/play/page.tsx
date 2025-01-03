@@ -11,7 +11,7 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FastForwardIcon from '@mui/icons-material/FastForward';
-import { Track, PlaybackState, TrackBPM, Segment , getStorageKey } from "../types";
+import { Track, PlaybackState, TrackBPM, Segment , getStorageKey, WorkoutType, WORKOUT_LABELS } from "../types";
 import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
@@ -48,6 +48,33 @@ const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
       : undefined;
 
   return { currentSegment, nextSegment };
+};
+
+const getUniqueWorkoutTypes = (segments: Segment[]): WorkoutType[] => {
+  return Array.from(new Set(segments.map(s => s.type)));
+};
+
+const WorkoutBadge = ({ type }: { type: WorkoutType }) => {
+  const badgeStyles: Record<WorkoutType, { bg: string, text: string }> = {
+    PLS: { bg: 'bg-purple-500/20', text: 'text-purple-300' },
+    SEATED_ROAD: { bg: 'bg-blue-500/20', text: 'text-blue-300' },
+    SEATED_CLIMB: { bg: 'bg-green-500/20', text: 'text-green-300' },
+    STANDING_CLIMB: { bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
+    STANDING_JOGGING: { bg: 'bg-orange-500/20', text: 'text-orange-300' },
+    JUMPS: { bg: 'bg-red-500/20', text: 'text-red-300' },
+    WAVES: { bg: 'bg-pink-500/20', text: 'text-pink-300' },
+    PUSHES: { bg: 'bg-indigo-500/20', text: 'text-indigo-300' },
+  };
+
+  return (
+    <div className={`px-6 py-4 rounded-lg ${badgeStyles[type].bg} 
+      flex flex-col items-center justify-center`}
+    >
+      <div className={`text-3xl font-bold ${badgeStyles[type].text}`}>
+        {WORKOUT_LABELS[type]}
+      </div>
+    </div>
+  );
 };
 
 export default function WorkoutPlayer({ 
@@ -633,13 +660,23 @@ export default function WorkoutPlayer({
             </div>
           </div>
 
-          {/* BPM Display */}
-          <div className="flex flex-col items-center justify-center px-8 py-4 bg-white/5 rounded-lg">
-            <div className="text-5xl font-mono font-bold text-white/90 mb-1">
-              {Math.round(trackBPM.tempo)}
+          {/* Workout types and BPM Display */}
+          <div className="flex items-center gap-6">
+            {/* Workout type badges */}
+            <div className="flex gap-4">
+              {getUniqueWorkoutTypes(segments).map(type => (
+                <WorkoutBadge key={type} type={type} />
+              ))}
             </div>
-            <div className="text-sm text-gray-400 uppercase tracking-wider">
-              BPM
+
+            {/* BPM Display */}
+            <div className="flex flex-col items-center justify-center px-8 py-4 bg-white/5 rounded-lg">
+              <div className="text-5xl font-mono font-bold text-white/90 mb-1">
+                {Math.round(trackBPM.tempo)}
+              </div>
+              <div className="text-sm text-gray-400 uppercase tracking-wider">
+                BPM
+              </div>
             </div>
           </div>
         </div>
