@@ -29,6 +29,11 @@ export interface PlaybackState {
   isPlaying: boolean
   position: number
   duration: number
+  track_window: {
+    current_track: {
+      id: string
+    }
+  }
 }
 
 export interface TrackBPM {
