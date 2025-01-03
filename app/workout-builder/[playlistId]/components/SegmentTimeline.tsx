@@ -68,35 +68,50 @@ export const SegmentTimeline = ({
         )}
 
         {/* Segments */}
-        {segments.sort((a, b) => a.startTime - b.startTime).map((segment) => (
-          <div
-            key={segment.id}
-            className="absolute top-0 bottom-0 group/segment"
-            style={{
-              left: `${(segment.startTime / duration) * 100}%`,
-              width: `${((segment.endTime - segment.startTime) / duration) * 100}%`,
-            }}
-          >
-            {/* Workout type background */}
-            <div className={`absolute inset-0 ${SEGMENT_COLORS[segment.type]} opacity-30`} />
-            
-            {/* Intensity overlay */}
-            <div className={`absolute inset-0 ${getIntensityColor(segment.intensity)} opacity-40`} />
+        {segments.sort((a, b) => a.startTime - b.startTime).map((segment, index) => {
+          const isActive = position >= segment.startTime && position < segment.endTime;
+          
+          return (
+            <div
+              key={segment.id}
+              className="absolute top-0 bottom-0 group/segment"
+              style={{
+                left: `${(segment.startTime / duration) * 100}%`,
+                width: `${((segment.endTime - segment.startTime) / duration) * 100}%`,
+              }}
+            >
+              {/* Segment separator line */}
+              <div className="absolute top-0 bottom-0 -left-px w-[2px] bg-white/30" />
+              
+              {/* Workout type background */}
+              <div className={`absolute inset-0 ${SEGMENT_COLORS[segment.type]} opacity-30`} />
+              
+              {/* Intensity overlay */}
+              <div className={`absolute inset-0 ${getIntensityColor(segment.intensity)} opacity-40`} />
 
-            {/* Hover info */}
-            <div className="opacity-0 group-hover/segment:opacity-100 absolute top-full mt-2 left-1/2 -translate-x-1/2 
-              bg-black/90 px-3 py-2 rounded text-sm whitespace-nowrap z-20 pointer-events-none">
-              <div className="font-medium">{segment.title}</div>
-              <div className="text-xs text-gray-400">
-                {WORKOUT_LABELS[segment.type]} • 
-                {segment.intensity === -1 ? ' BURN!' : ` ${segment.intensity}%`}
-              </div>
-              <div className="text-xs text-gray-500">
-                {formatDuration(segment.startTime)} - {formatDuration(segment.endTime)}
+              {/* Active segment highlight */}
+              {isActive && (
+                <div className="absolute inset-0 border-2 border-white/40 rounded-sm" />
+              )}
+
+              {/* Hover info */}
+              <div className="opacity-0 group-hover/segment:opacity-100 absolute top-full mt-2 left-1/2 -translate-x-1/2 
+                bg-black/90 px-3 py-2 rounded text-sm whitespace-nowrap z-20 pointer-events-none">
+                <div className="font-medium">{segment.title}</div>
+                <div className="text-xs text-gray-400">
+                  {WORKOUT_LABELS[segment.type]} • 
+                  {segment.intensity === -1 ? ' BURN!' : ` ${segment.intensity}%`}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {formatDuration(segment.startTime)} - {formatDuration(segment.endTime)}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+
+        {/* Add final separator line */}
+        <div className="absolute top-0 bottom-0 right-0 w-[2px] bg-white/30" />
 
         {/* Playhead */}
         <div 

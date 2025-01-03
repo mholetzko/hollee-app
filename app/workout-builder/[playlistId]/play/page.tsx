@@ -776,31 +776,47 @@ export default function WorkoutPlayer({ params }: { params: Params }) {
         {/* Track list */}
         <div className="mt-8">
           <div className="bg-black/20 rounded-lg p-4">
-            <h2 className="text-lg font-semibold mb-4">Up Next</h2>
+            <h2 className="text-lg font-semibold mb-4">Current & Up Next</h2>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {tracks.map((track, index) => (
-                <div
-                  key={`${track.id}-${index}`}
-                  className={`flex items-center p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
-                    ${index === currentTrackIndex ? "bg-white/10" : ""}`}
-                  onClick={() => {
-                    setCurrentTrackIndex(index);
-                    playTrack(track.id);
-                  }}
-                >
-                  <div className="w-8 text-gray-400">{index + 1}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{track.name}</div>
-                    <div className="text-sm text-gray-400 truncate">
-                      {track.artists.map((a) => a.name).join(", ")}
+              {tracks
+                .slice(currentTrackIndex) // Only show current and upcoming tracks
+                .map((track, index) => {
+                  const actualIndex = currentTrackIndex + index; // Calculate actual index for highlighting
+                  const trackBPMData = JSON.parse(localStorage.getItem('savedBPMs') || '{}')[
+                    `${resolvedParams.playlistId}_${track.id}`
+                  ];
+                  
+                  return (
+                    <div
+                      key={`${track.id}-${actualIndex}`}
+                      className={`flex items-center p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
+                        ${actualIndex === currentTrackIndex ? "bg-white/10" : ""}`}
+                      onClick={() => {
+                        setCurrentTrackIndex(actualIndex);
+                        playTrack(track.id);
+                      }}
+                    >
+                      <div className="w-8 text-gray-400">{actualIndex + 1}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{track.name}</div>
+                        <div className="text-sm text-gray-400 truncate">
+                          {track.artists.map((a) => a.name).join(", ")}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {/* BPM Display */}
+                        <div className="text-sm font-mono text-gray-400">
+                          {trackBPMData ? `${Math.round(trackBPMData)}` : '--'} BPM
+                        </div>
+                        {/* Duration */}
+                        <div className="text-sm text-gray-400">
+                          {Math.floor(track.duration_ms / 60000)}:
+                          {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-sm text-gray-400 ml-4">
-                    {Math.floor(track.duration_ms / 60000)}:
-                    {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
         </div>
