@@ -673,50 +673,186 @@ const saveTrackData = (
   }
 };
 
-// Update the LoadingState component to use the new storage format
+// Update the LoadingState component
 const LoadingState = ({ songId, playlistId }: { songId: string, playlistId: string }) => {
-  // Check if we have saved segments while showing loading state
-  const { segments } = loadTrackData(playlistId, songId);
-  const hasSavedConfig = segments.length > 0;
+  // Move the state check to a useEffect to avoid hydration mismatch
+  const [hasSavedConfig, setHasSavedConfig] = useState(false);
+
+  useEffect(() => {
+    // Check for saved segments after component mounts
+    const { segments } = loadTrackData(playlistId, songId);
+    setHasSavedConfig(segments.length > 0);
+  }, [playlistId, songId]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
       <div className="animate-spin h-8 w-8 border-2 border-white/50 rounded-full border-t-transparent" />
       <div className="text-sm text-gray-400">
-        {hasSavedConfig ? 'Loading saved workout configuration...' : 'Loading track...'}
+        Loading track...
       </div>
     </div>
   );
 };
 
+// Add these helper functions at the top level
+const timeToMs = (timeStr: string): number | null => {
+  if (!timeStr || !timeStr.includes(':')) return null;
+
+  try {
+    const [minutes, seconds] = timeStr.split(':').map(Number);
+    
+    if (isNaN(minutes) || isNaN(seconds) || seconds >= 60 || minutes < 0 || seconds < 0) {
+      return null;
+    }
+    
+    return (minutes * 60 + seconds) * 1000;
+  } catch (error) {
+    console.error('Error converting time to ms:', error);
+    return null;
+  }
+};
+
+const msToTimeStr = (ms: number): string => {
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+// Update the SegmentTimeInput component
+const SegmentTimeInput = ({ 
+  value,
+  onChange,
+  label,
+  min,
+  max,
+  segments,
+  segmentId,
+  isStart
+}: { 
+  value: number;
+  onChange: (time: number) => void;
+  label: string;
+  min: number;
+  max: number;
+  segments: Segment[];
+  segmentId: string;
+  isStart: boolean;
+}) => {
+  const [timeStr, setTimeStr] = useState(msToTimeStr(value));
+  const [error, setError] = useState(false);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    setTimeStr(msToTimeStr(value));
+  }, [value]);
+
+  const validateTime = (newMs: number | null): boolean => {
+    if (newMs === null) return false;
+
+    // Find adjacent segments
+    const currentSegment = segments.find(s => s.id === segmentId);
+    if (!currentSegment) return false;
+
+    const otherSegments = segments
+      .filter(s => s.id !== segmentId)
+      .sort((a, b) => a.startTime - b.startTime);
+    
+    if (isStart) {
+      // For start time
+      const prevSegment = otherSegments
+        .filter(s => s.endTime <= currentSegment.endTime)
+        .pop();
+
+      const minTime = prevSegment ? prevSegment.endTime : 0;
+      const maxTime = currentSegment.endTime - 1000;
+
+      return newMs >= minTime && newMs <= maxTime;
+    } else {
+      // For end time
+      const nextSegment = otherSegments
+        .filter(s => s.startTime >= currentSegment.startTime)
+        .shift();
+
+      const minTime = currentSegment.startTime + 1000;
+      const maxTime = nextSegment ? nextSegment.startTime : max;
+
+      return newMs >= minTime && newMs <= maxTime;
+    }
+  };
+
+  const handleChange = (inputStr: string) => {
+    setTimeStr(inputStr);
+    
+    const newMs = timeToMs(inputStr);
+    if (newMs !== null && validateTime(newMs)) {
+      onChange(newMs);
+      setError(false);
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="text-xs text-gray-400">{label}</label>
+      <input
+        type="text"
+        pattern="[0-9]{1,2}:[0-9]{2}"
+        placeholder="MM:SS"
+        className={`bg-white/5 rounded px-2 py-1 w-20 text-sm
+          ${error ? 'border border-red-500' : ''}`}
+        value={timeStr}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => {
+          if (error) {
+            setTimeStr(msToTimeStr(value));
+            setError(false);
+          }
+        }}
+      />
+      {error && (
+        <div className="text-xs text-red-500">
+          Invalid time
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function SongSegmentEditor({ params }: { params: any }) {
-  const resolvedParams = use(params)
-  const [track, setTrack] = useState<Track | null>(null)
-  const [segments, setSegments] = useState<Segment[]>(() => {
-    if (typeof window === 'undefined') return [];
-    const { segments } = loadTrackData(resolvedParams.playlistId, resolvedParams.songId);
-    return segments;
-  })
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
-  const [player, setPlayer] = useState<any>(null)
+  const resolvedParams = use(params);
+  const [track, setTrack] = useState<Track | null>(null);
+  
+  // Move segments initialization to useEffect
+  const [segments, setSegments] = useState<Segment[]>([]);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const { segments } = loadTrackData(resolvedParams.playlistId, resolvedParams.songId);
+      setSegments(segments);
+    }
+  }, [resolvedParams.playlistId, resolvedParams.songId]);
+
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [player, setPlayer] = useState<any>(null);
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     isPlaying: false,
     position: 0,
     duration: 0,
-  })
-  const [deviceId, setDeviceId] = useState<string>('')
-  const [isPlayerReady, setIsPlayerReady] = useState(false)
+  });
+  const [deviceId, setDeviceId] = useState<string>('');
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [dragState, setDragState] = useState<DragState>({
     segmentId: null,
     type: null,
     initialX: 0,
     initialTime: 0
-  })
-  const timelineRef = useRef<HTMLDivElement>(null)
+  });
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Add state for tracking progress
-  const progressInterval = useRef<NodeJS.Timeout>()
+  const progressInterval = useRef<NodeJS.Timeout>();
 
   // Update initial BPM state
   const [trackBPM, setTrackBPM] = useState<TrackBPM>(() => {
@@ -972,21 +1108,68 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     return () => clearTimeout(timeoutId);
   }, [segments, track, resolvedParams.playlistId, trackBPM]);
 
-  // Add logging to addSegment
-  const addSegment = (startTime: number) => {
-    const newSegments = [
-      ...segments,
-      {
-        id: crypto.randomUUID(),
-        startTime,
-        endTime: Math.min(startTime + 30000, track?.duration_ms || 0),
-        title: `Segment ${segments.length + 1}`,
-        type: 'SEATED_ROAD',
-        intensity: 55
-      }
-    ];
-    setSegments(newSegments);
-    // Save is handled by the useEffect
+  // Update the addSegment function
+  const addSegment = () => {
+    console.log('[Add Segment] Current position:', playbackState.position);
+    
+    // Sort segments by start time
+    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime);
+    
+    // Default segment duration (30 seconds)
+    const defaultDuration = 30000;
+    let startTime: number;
+    
+    if (sortedSegments.length > 0) {
+      // If we have segments, add after the last one
+      const lastSegment = sortedSegments[sortedSegments.length - 1];
+      startTime = lastSegment.endTime;
+    } else {
+      // If no segments, start at current position
+      startTime = playbackState.position;
+    }
+    
+    // Calculate end time
+    let endTime = Math.min(
+      startTime + defaultDuration,
+      track?.duration_ms || 0
+    );
+
+    console.log('[Add Segment] Calculated times:', { 
+      startTime, 
+      endTime,
+      trackDuration: track?.duration_ms 
+    });
+
+    // Check if we have enough space (minimum 5 seconds)
+    const minDuration = 5000;
+    if (endTime - startTime < minDuration) {
+      console.warn('[Add Segment] Not enough space for new segment:', {
+        available: endTime - startTime,
+        minimum: minDuration
+      });
+      return;
+    }
+
+    const newSegment: Segment = {
+      id: crypto.randomUUID(),
+      startTime,
+      endTime,
+      title: `Segment ${segments.length + 1}`,
+      type: 'SEATED_ROAD',
+      intensity: 75
+    };
+
+    console.log('[Add Segment] Adding new segment:', newSegment);
+    setSegments(prev => [...prev, newSegment]);
+
+    // Move playback position to the start of the new segment
+    if (player) {
+      player.seek(startTime);
+      setPlaybackState(prev => ({
+        ...prev,
+        position: startTime
+      }));
+    }
   };
 
   const formatDuration = (ms: number) => {
@@ -1451,70 +1634,40 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                           }}
                         />
                         <div className="flex items-center gap-4">
-                          <div className="space-y-1">
-                            <label className="text-xs text-gray-400">Start Time</label>
-                            <input
-                              type="text"
-                              pattern="[0-9]{1,2}:[0-9]{2}"
-                              placeholder="MM:SS"
-                              className="bg-white/5 rounded px-2 py-1 w-20 text-sm"
-                              value={msToTimeInput(segment.startTime)}
-                              onChange={(e) => {
-                                if (!e.target.value) return
-                                const newStartMs = timeToMs(e.target.value)
-                                
-                                // Validate new start time
-                                const prevSegment = segments
-                                  .filter(s => s.id !== segment.id)
-                                  .sort((a, b) => a.startTime - b.startTime)
-                                  .find(s => s.endTime <= segment.startTime)
-
-                                const minStart = prevSegment ? prevSegment.endTime : 0
-                                const maxStart = segment.endTime - 1000
-
-                                if (newStartMs >= minStart && newStartMs <= maxStart) {
-                                  setSegments(segments.map(s =>
-                                    s.id === segment.id
-                                      ? { ...s, startTime: newStartMs }
-                                      : s
-                                  ))
-                                }
-                              }}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs text-gray-400">End Time</label>
-                            <input
-                              type="text"
-                              pattern="[0-9]{1,2}:[0-9]{2}"
-                              placeholder="MM:SS"
-                              className="bg-white/5 rounded px-2 py-1 w-20 text-sm"
-                              value={msToTimeInput(segment.endTime)}
-                              onChange={(e) => {
-                                if (!e.target.value) return
-                                const newEndMs = timeToMs(e.target.value)
-                                
-                                // Validate new end time
-                                const nextSegment = segments
-                                  .filter(s => s.id !== segment.id)
-                                  .sort((a, b) => a.startTime - b.startTime)
-                                  .find(s => s.startTime >= segment.endTime)
-
-                                const minEnd = segment.startTime + 1000
-                                const maxEnd = nextSegment ? nextSegment.startTime : track?.duration_ms || 0
-
-                                if (newEndMs >= minEnd && newEndMs <= maxEnd) {
-                                  setSegments(segments.map(s =>
-                                    s.id === segment.id
-                                      ? { ...s, endTime: newEndMs }
-                                      : s
-                                  ))
-                                }
-                              }}
-                            />
-                          </div>
+                          <SegmentTimeInput
+                            label="Start Time"
+                            value={segment.startTime}
+                            min={0}
+                            max={segment.endTime - 1000}
+                            onChange={(newTime) => {
+                              setSegments(segments.map(s =>
+                                s.id === segment.id
+                                  ? { ...s, startTime: newTime }
+                                  : s
+                              ));
+                            }}
+                            segments={segments}
+                            segmentId={segment.id}
+                            isStart={true}
+                          />
+                          <SegmentTimeInput
+                            label="End Time"
+                            value={segment.endTime}
+                            min={segment.startTime + 1000}
+                            max={track?.duration_ms || 0}
+                            onChange={(newTime) => {
+                              setSegments(segments.map(s =>
+                                s.id === segment.id
+                                  ? { ...s, endTime: newTime }
+                                  : s
+                              ));
+                            }}
+                            segments={segments}
+                            segmentId={segment.id}
+                            isStart={false}
+                          />
                           <div className="text-sm text-gray-400">
-                            Duration: {formatDuration(segment.endTime - segment.startTime)}
+                            Duration: {msToTimeStr(segment.endTime - segment.startTime)}
                           </div>
                         </div>
                       </div>

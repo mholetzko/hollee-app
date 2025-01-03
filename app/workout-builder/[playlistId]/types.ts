@@ -44,4 +44,4 @@ export interface TrackBPM {
 // Add a helper function to generate storage keys
 export const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm') => {
   return `playlist_${playlistId}_${type}_${songId}`;
-}; 
+};
