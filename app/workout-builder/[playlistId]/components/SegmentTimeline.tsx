@@ -33,7 +33,6 @@ export const SegmentTimeline = ({
   segments,
   duration,
   position,
-  isPlaying,
   showBeats,
   bpm = 128
 }: SegmentTimelineProps) => {
@@ -68,7 +67,7 @@ export const SegmentTimeline = ({
         )}
 
         {/* Segments */}
-        {segments.sort((a, b) => a.startTime - b.startTime).map((segment, index) => {
+        {segments.sort((a, b) => a.startTime - b.startTime).map((segment) => {
           const isActive = position >= segment.startTime && position < segment.endTime;
           
           return (

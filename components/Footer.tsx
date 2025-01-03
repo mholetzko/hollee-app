@@ -2,7 +2,7 @@ export const Footer = () => {
   return (
     <div className="w-full py-6 px-6 flex flex-col items-center gap-4 text-sm text-gray-500 border-t border-white/10">
       <a 
-        href="https://www.buymeacoffee.com/your_username" // Replace with your Buy Me a Coffee username
+        href="https://www.buymeacoffee.com/mholetsgo" 
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-3 px-6 py-3 bg-[#FFDD00] text-[#000000] rounded-full hover:bg-[#FFDD00]/90 transition-all duration-300 hover:scale-105 font-medium"

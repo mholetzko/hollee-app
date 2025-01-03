@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback , use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { use } from 'react'
 import { PlayIcon, PauseIcon, StopIcon, ArrowLeftIcon } from '@radix-ui/react-icons'
 import { getStorageKey } from '../../types'
 
@@ -54,15 +55,6 @@ interface DragState {
   type: 'start' | 'end' | null
   initialX: number
   initialTime: number
-}
-
-// Add audio features interface
-interface AudioFeatures {
-  tempo: number  // BPM
-  time_signature: number
-  key: number
-  mode: number
-  energy: number
 }
 
 // Update segment colors
@@ -222,13 +214,6 @@ interface SongBPMData {
   source: 'manual' | 'title' | 'database' | 'youtube'
 }
 
-// Add a simple database of known BPMs for common workout songs
-const KNOWN_BPMS: Record<string, number> = {
-  // Add some common workout songs and their BPMs
-  '2KH16WveTQWT6KOG9Rg6e2': 128, // Example song ID and BPM
-  '3DamFFqW32WihKkTVlwTYQ': 140,
-  // Add more as needed
-}
 
 // Add a helper function for localStorage BPM operations
 const BPMStorage = {
@@ -688,76 +673,6 @@ const saveTrackData = (
   }
 };
 
-// Add a function to export workout data
-const exportWorkoutData = (playlistId: string, songId: string) => {
-  try {
-    console.log('[Export] Starting export for:', { playlistId, songId });
-    
-    // Get segments
-    const segments = JSON.parse(
-      localStorage.getItem(getStorageKey(playlistId, songId, 'segments')) || '[]'
-    );
-
-    // Get BPM from savedBPMs
-    const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
-    const bpmValue = savedBPMs[`${playlistId}_${songId}`];
-    
-    // Normalize BPM format
-    const bpm = normalizeBPM(bpmValue);
-
-    console.log('[Export] Found BPM:', { bpmValue, normalizedBPM: bpm });
-
-    const exportData = {
-      segments,
-      bpm,
-      playlistId,
-      songId,
-      exportedAt: new Date().toISOString()
-    };
-
-    console.log('[Export] Final export data:', exportData);
-    return exportData;
-  } catch (error) {
-    console.error('[Export] Error exporting workout data:', error);
-    return null;
-  }
-};
-
-// Add a function to import workout data
-const importWorkoutData = (data: any) => {
-  try {
-    console.log('[Import] Starting import with data:', data);
-    
-    if (data.segments && data.songId) {
-      // Save segments
-      localStorage.setItem(
-        getStorageKey(data.playlistId, data.songId, 'segments'),
-        JSON.stringify(data.segments)
-      );
-
-      // Save BPM as a simple number
-      if (data.bpm) {
-        const bpmValue = typeof data.bpm === 'number' ? data.bpm : data.bpm.tempo;
-        const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
-        savedBPMs[`${data.playlistId}_${data.songId}`] = bpmValue;
-        localStorage.setItem('savedBPMs', JSON.stringify(savedBPMs));
-
-        console.log('[Import] Saved BPM:', {
-          originalBPM: data.bpm,
-          savedValue: bpmValue
-        });
-      }
-
-      console.log('[Import] Successfully imported workout data');
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('[Import] Error importing workout data:', error);
-    return false;
-  }
-};
-
 // Update the LoadingState component to use the new storage format
 const LoadingState = ({ songId, playlistId }: { songId: string, playlistId: string }) => {
   // Check if we have saved segments while showing loading state
@@ -1074,20 +989,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     // Save is handled by the useEffect
   };
 
-  const updateSegment = (id: string, updates: Partial<Segment>) => {
-    const newSegments = segments.map(s => 
-      s.id === id ? { ...s, ...updates } : s
-    );
-    setSegments(newSegments);
-    // Save is handled by the useEffect
-  };
-
-  const deleteSegment = (id: string) => {
-    const newSegments = segments.filter(s => s.id !== id);
-    setSegments(newSegments);
-    // Save is handled by the useEffect
-  };
-
   const formatDuration = (ms: number) => {
     const minutes = Math.floor(ms / 60000)
     const seconds = Math.floor((ms % 60000) / 1000)
@@ -1155,8 +1056,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       console.error('Seek error:', error)
     })
   }, [player, isPlayerReady, track?.duration_ms])
-
-  const SNAP_THRESHOLD = 500 // 500ms threshold for snapping
 
   const handleDragMove = useCallback((e: MouseEvent) => {
     if (!dragState.segmentId || !timelineRef.current || !track) return
@@ -1275,21 +1174,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   const getIntensityLabel = (intensity: number) => {
     if (intensity === -1) return 'BURN'
     return `${intensity}%`
-  }
-
-  // Add error state handling
-  const [error, setError] = useState<string | null>(null)
-
-  // Update the return statement to handle errors
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Error Loading Track</h2>
-          <p className="text-gray-400">{error}</p>
-        </div>
-      </div>
-    )
   }
 
   if (loading || !track) {

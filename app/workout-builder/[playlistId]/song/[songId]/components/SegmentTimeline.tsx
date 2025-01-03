@@ -1,4 +1,4 @@
-import { useRef, forwardRef, ForwardRefRenderFunction } from 'react'
+import { forwardRef, ForwardRefRenderFunction } from 'react'
 import { Segment } from '../../../types'
 import { SEGMENT_COLORS, WORKOUT_LABELS, SEGMENT_COLORS_HOVER } from '../../../constants'
 import { formatDuration } from '../../../utils'
@@ -65,10 +65,8 @@ const SegmentTimelineBase: ForwardRefRenderFunction<HTMLDivElement, SegmentTimel
     segments = [], 
     duration = 0,
     position = 0,
-    isPlaying = false,
     onSeek,
     onDragStart,
-    onDragEnd,
     showBeats = false,
     bpm
   }, 

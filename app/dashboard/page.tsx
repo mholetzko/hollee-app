@@ -16,10 +16,6 @@ interface Playlist {
   };
 }
 
-interface User {
-  id: string;
-}
-
 const getWorkoutStatus = (playlistId: string) => {
   const keys = Object.keys(localStorage);
   const segmentKeys = keys.filter(key => key.startsWith(`playlist_${playlistId}_segments_`));
@@ -56,7 +52,6 @@ const getWorkoutStatus = (playlistId: string) => {
 
 export default function DashboardPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -96,7 +91,6 @@ export default function DashboardPage() {
         }
 
         const userData = await userResponse.json();
-        setUser(userData);
 
         // Then fetch playlists
         const playlistResponse = await fetch(

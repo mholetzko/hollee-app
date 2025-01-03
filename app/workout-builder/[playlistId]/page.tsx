@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 'use client'
 
 import { useEffect, useState , use } from 'react'
@@ -184,12 +186,6 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
     fetchPlaylistTracks()
   }, [resolvedParams.playlistId, router])
-
-  const formatDuration = (ms: number) => {
-    const minutes = Math.floor(ms / 60000)
-    const seconds = Math.floor((ms % 60000) / 1000)
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
 
   const handleExport = () => {
     const configs = getAllWorkoutConfigs(resolvedParams.playlistId, tracks);

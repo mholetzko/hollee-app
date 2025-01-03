@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -9,22 +11,11 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FastForwardIcon from '@mui/icons-material/FastForward';
-import { Track, PlaybackState, TrackBPM, Segment } from "../types";
+import { Track, PlaybackState, TrackBPM, Segment , getStorageKey } from "../types";
 import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
-import { WorkoutProgress } from "../components/WorkoutProgress";
-import { getStorageKey } from "../types";
-import { SegmentList } from "../components/SegmentList";
 import { SegmentTimeline } from "../components/SegmentTimeline";
-
-// Utility functions
-const formatTime = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
 
 // Add types if not already defined in types.ts
 declare global {
@@ -34,6 +25,10 @@ declare global {
     };
     onSpotifyWebPlaybackSDKReady: () => void;
   }
+}
+
+interface Params {
+  readonly playlistId: string;
 }
 
 const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
@@ -55,42 +50,11 @@ const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
   return { currentSegment, nextSegment };
 };
 
-type Params = { playlistId: string };
-
-// Add these constants at the top of the file
-const SEGMENT_COLORS = {
-  PLS: 'bg-purple-500/50',
-  SEATED_ROAD: 'bg-blue-500/50',
-  SEATED_CLIMB: 'bg-green-500/50',
-  STANDING_CLIMB: 'bg-yellow-500/50',
-  STANDING_JOGGING: 'bg-orange-500/50',
-  JUMPS: 'bg-red-500/50',
-  WAVES: 'bg-pink-500/50',
-  PUSHES: 'bg-indigo-500/50',
-} as const;
-
-const WORKOUT_LABELS: Record<WorkoutType, string> = {
-  PLS: 'PLS',
-  SEATED_ROAD: 'SeRo',
-  SEATED_CLIMB: 'SeCl',
-  STANDING_CLIMB: 'StCl',
-  STANDING_JOGGING: 'StJo',
-  JUMPS: 'Jump',
-  WAVES: 'Wave',
-  PUSHES: 'Push',
-} as const;
-
-// Add the intensity color helper
-const getIntensityColor = (intensity: number) => {
-  if (intensity === -1) return 'bg-red-500/50'; // BURN mode
-  if (intensity > 90) return 'bg-red-500/50';    // 90-100%
-  if (intensity > 75) return 'bg-yellow-500/50';  // 75-90%
-  if (intensity > 55) return 'bg-green-500/50';   // 55-75%
-  if (intensity > 25) return 'bg-blue-500/50';    // 25-55%
-  return 'bg-white/50';                           // 0-25%
-};
-
-export default function WorkoutPlayer({ params }: { params: Params }) {
+export default function WorkoutPlayer({ 
+  params 
+}: Readonly<{ 
+  params: Params 
+}>) {
   const resolvedParams = React.use(params as unknown as any);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
