@@ -858,6 +858,17 @@ const SegmentTimeInput = ({
   );
 };
 
+// Add browser detection
+const isSafari = () => {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.includes('safari') && !ua.includes('chrome');
+};
+
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
+
 export default function SongSegmentEditor({ params }: { params: any }) {
   const resolvedParams = use(params);
   const [track, setTrack] = useState<Track | null>(null);
@@ -1425,6 +1436,14 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     if (intensity === -1) return "BURN";
     return `${intensity}%`;
   };
+
+  useEffect(() => {
+    if (isIOS() || isSafari()) {
+      // Show alternative playback message
+      alert("iOS/Safari users: Please ensure Spotify is playing on another device. This app will control that device.");
+    }
+    // ... rest of your initialization code
+  }, []);
 
   if (loading || !track) {
     return (

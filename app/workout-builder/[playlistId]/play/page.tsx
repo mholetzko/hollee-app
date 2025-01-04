@@ -16,6 +16,7 @@ import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
 import { SegmentTimeline } from "../components/SegmentTimeline";
+import { DeviceSelector } from "../components/DeviceSelector";
 
 // Add types if not already defined in types.ts
 declare global {
@@ -523,64 +524,93 @@ export default function WorkoutPlayer({
   useEffect(() => {
     if (tracks[currentTrackIndex]) {
       const track = tracks[currentTrackIndex];
-      playTrack(track.id);
-
-      // Load track data using the new format
+      console.log('[Track Change] Loading track:', track.id);
+      
+      // Load track data first
       const { segments, bpm } = loadTrackData(resolvedParams.playlistId, track.id);
       setSegments(segments);
       if (bpm) {
         setTrackBPM(bpm);
       }
+
+      // Set flag and play track
+      isPlayingNextTrack.current = true;
+      playTrack(track.id).catch(error => {
+        console.error('[Track Change] Playback error:', error);
+        isPlayingNextTrack.current = false;
+      });
     }
   }, [currentTrackIndex, tracks]);
 
   const playTrack = async (trackId: string) => {
-    if (!player || !deviceId || !isPlayerReady) {
-      console.log("Player not ready:", { player, deviceId, isPlayerReady });
-      return;
-    }
-
-    const accessToken = localStorage.getItem("spotify_access_token");
-    if (!accessToken) return;
-
+    console.log('[playTrack] Starting playback for track:', trackId);
+    const token = localStorage.getItem('spotify_access_token');
+    const activeDevice = localStorage.getItem('spotify_active_device');
+    
     try {
-      console.log("Attempting to play track:", trackId);
-      const response = await fetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
-        {
-          method: "PUT",
+      // First ensure the device is ready and pause any current playback
+      if (activeDevice) {
+        await fetch('https://api.spotify.com/v1/me/player/pause', {
+          method: 'PUT',
           headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
+            'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            uris: [`spotify:track:${trackId}`],
-            position_ms: 0,
-          }),
-        }
-      );
+        }).catch(() => {}); // Ignore pause errors
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Failed to play track:", errorData);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      const url = activeDevice 
+        ? `https://api.spotify.com/v1/me/player/play?device_id=${activeDevice}`
+        : 'https://api.spotify.com/v1/me/player/play';
+
+      console.log('[playTrack] Using URL:', url);
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uris: [`spotify:track:${trackId}`],
+          position_ms: 0,
+        }),
+      });
+
+      console.log('[playTrack] Response status:', response.status);
+
+      if (response.status === 204) {
+        console.log('[playTrack] Playback started successfully');
+        setPlaybackState(prev => ({
+          ...prev,
+          isPlaying: true,
+          position: 0,
+          track_window: {
+            current_track: {
+              id: trackId,
+            },
+          },
+        }));
+        isPlayingNextTrack.current = false;
         return;
       }
 
-      // Load track-specific data
-      const storedSegments = JSON.parse(
-        localStorage.getItem(getStorageKey(resolvedParams.playlistId, trackId, 'segments')) ?? "[]"
-      );
-      setSegments(storedSegments);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[playTrack] Error:', { status: response.status, data: errorData });
+        
+        if (response.status === 404 || errorData.error?.reason === 'NO_ACTIVE_DEVICE') {
+          console.log('[playTrack] No active device, showing selector');
+          setShowDeviceSelector(true);
+          return;
+        }
 
-      const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') ?? "{}");
-      if (savedBPMs[`${resolvedParams.playlistId}_${trackId}`]) {
-        setTrackBPM({
-          tempo: savedBPMs[`${resolvedParams.playlistId}_${trackId}`],
-          isManual: true,
-        });
+        throw new Error(`Playback failed: ${errorData.error?.message || response.statusText}`);
       }
     } catch (error) {
-      console.error("Error playing track:", error);
+      console.error('[playTrack] Error:', error);
+      setShowDeviceSelector(true);
     }
   };
 
@@ -593,7 +623,6 @@ export default function WorkoutPlayer({
     });
 
     try {
-      // Check if we can move to next track
       if (currentTrackIndexRef.current >= tracksRef.current.length - 1) {
         console.log('[Next Track] Already at last track');
         return;
@@ -608,13 +637,10 @@ export default function WorkoutPlayer({
         nextTrackId: nextTrack?.id
       });
 
-      // Update index
       setCurrentTrackIndex(nextIndex);
       
-      // Small delay to ensure state is updated
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Play the track
       await playTrack(nextTrack.id);
 
     } catch (error) {
@@ -649,24 +675,40 @@ export default function WorkoutPlayer({
   };
 
   const togglePlayback = async () => {
-    if (!player || !tracks[currentTrackIndex] || !deviceId || !isPlayerReady)
-      return;
-
+    console.log('[togglePlayback] Current state:', playbackState.isPlaying);
+    
+    const token = localStorage.getItem('spotify_access_token');
+    const activeDevice = localStorage.getItem('spotify_active_device');
+    
     try {
-      if (!playbackState.isPlaying) {
-        await playTrack(tracks[currentTrackIndex].id);
-      } else {
-        await player.pause();
-        setPlaybackState((prev) => ({
+      const response = await fetch('https://api.spotify.com/v1/me/player/' + (playbackState.isPlaying ? 'pause' : 'play'), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        ...(activeDevice && {
+          body: JSON.stringify({
+            device_id: activeDevice,
+          }),
+        }),
+      });
+
+      if (response.status === 204) {
+        console.log('[togglePlayback] Success');
+        setPlaybackState(prev => ({
           ...prev,
-          isPlaying: false,
+          isPlaying: !prev.isPlaying
         }));
-        if (progressInterval.current) {
-          clearInterval(progressInterval.current);
-        }
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${playbackState.isPlaying ? 'pause' : 'play'}`);
       }
     } catch (error) {
-      console.error("Playback error:", error);
+      console.error('[togglePlayback] Error:', error);
+      setShowDeviceSelector(true);
     }
   };
 
@@ -767,6 +809,91 @@ export default function WorkoutPlayer({
       .reduce((acc, track) => acc + track.duration_ms, 0);
     setCurrentTrackStartTime(startTime);
   }, [currentTrackIndex, tracks]);
+
+  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
+
+  // Also update the device activation to ensure playback starts
+  const onDeviceSelected = async (deviceId: string) => {
+    console.log('[Device Selected] Starting with device:', deviceId);
+    setShowDeviceSelector(false);
+    
+    try {
+      // First ensure the device is ready
+      await fetch('https://api.spotify.com/v1/me/player', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('spotify_access_token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_ids: [deviceId],
+          play: false,
+        }),
+      });
+
+      // Small delay to ensure device is ready
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Set flag to prevent auto-skip
+      isPlayingNextTrack.current = true;
+      
+      if (currentTrack) {
+        console.log('[Device Selected] Playing track:', currentTrack.id);
+        await playTrack(currentTrack.id);
+      }
+      
+      // Reset flag after a delay
+      setTimeout(() => {
+        isPlayingNextTrack.current = false;
+        console.log('[Device Selected] Reset playing next flag');
+      }, 2000);
+    } catch (error) {
+      console.error('[Device Selected] Error:', error);
+      alert('Failed to start playback. Please try again.');
+    }
+  };
+
+  // Update the playback state handling
+  useEffect(() => {
+    if (!player) return;
+
+    const handleStateChange = (state: any) => {
+      console.log('[Player State]', state);
+      
+      if (!state) {
+        console.log('[Player State] No state received');
+        return;
+      }
+
+      // Update playback state regardless of isPlayingNextTrack flag
+      setPlaybackState({
+        isPlaying: !state.paused,
+        position: state.position,
+        duration: state.duration,
+        track_window: {
+          current_track: {
+            id: state.track_window.current_track.id,
+          },
+        },
+      });
+
+      // Only handle track ending if we're not already changing tracks
+      // and the track has actually finished (not just paused)
+      if (state.paused && 
+          state.position === 0 && 
+          !isPlayingNextTrack.current && 
+          state.track_window?.previous_track) {
+        console.log('[Playback] Track ended naturally');
+        debouncedPlayNextTrack();
+      }
+    };
+
+    player.addListener('player_state_changed', handleStateChange);
+
+    return () => {
+      player.removeListener('player_state_changed', handleStateChange);
+    };
+  }, [player, debouncedPlayNextTrack]);
 
   if (error) {
     return (
@@ -1030,6 +1157,11 @@ export default function WorkoutPlayer({
           </div>
         </div>
       </div>
+
+      {/* Add DeviceSelector */}
+      {showDeviceSelector && (
+        <DeviceSelector onDeviceSelected={onDeviceSelected} />
+      )}
     </div>
   );
 }
