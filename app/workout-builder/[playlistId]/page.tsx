@@ -5,9 +5,10 @@
 import { useEffect, useState , use } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import Link from 'next/link'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { Footer } from '@/components/Footer'
+import { Track, Segment, WorkoutType, getStorageKey } from "./types";
+import { SmallWorkoutBadge } from "./components/SmallWorkoutBadge";
 
 interface Track {
   id: string
@@ -16,10 +17,6 @@ interface Track {
   artists: { name: string }[]
   album?: { images?: { url: string }[] }
 }
-
-const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm') => {
-  return `playlist_${playlistId}_${type}_${songId}`;
-};
 
 const hasSavedSegments = (playlistId: string, songId: string): boolean => {
   if (typeof window === 'undefined') return false;
@@ -349,46 +346,88 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
           <div className="grid gap-4">
             {tracks.map((track) => {
-              const hasConfig = hasSavedSegments(resolvedParams.playlistId, track.id)
+              // Get saved segments and BPM for this track
+              const trackSegments = JSON.parse(
+                localStorage.getItem(getStorageKey(resolvedParams.playlistId, track.id, 'segments')) || '[]'
+              );
               
+              const trackBPMData = JSON.parse(localStorage.getItem('savedBPMs') || '{}')[
+                `${resolvedParams.playlistId}_${track.id}`
+              ];
+
+              // Get unique workout types
+              const trackWorkoutTypes = Array.from(
+                new Set(trackSegments.map((s: Segment) => s.type))
+              );
+
+              const hasConfiguration = trackWorkoutTypes.length > 0 || trackBPMData;
+
               return (
-                <Link
+                <div
                   key={track.id}
-                  href={`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`}
-                  className={`
-                    flex items-center gap-4 p-4 rounded-lg 
-                    ${hasConfig ? 'bg-white/10' : 'bg-black/20'} 
-                    hover:bg-white/20 transition-colors relative group
-                  `}
+                  className={`group flex flex-col p-4 rounded-lg transition-colors
+                    ${hasConfiguration ? 'bg-white/5' : 'bg-black/20'}
+                    hover:bg-white/10`}
                 >
-                  {track.album?.images?.[0] && (
-                    <img
-                      src={track.album.images[0].url}
-                      alt={track.name}
-                      className="w-16 h-16 rounded"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="font-medium">{track.name}</div>
-                    <div className="text-sm text-gray-400">
-                      {track.artists.map(a => a.name).join(', ')}
+                  {/* Track basic info */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0">
+                      {track.album?.images?.[0] && (
+                        <img
+                          src={track.album.images[0].url}
+                          alt={track.name}
+                          className="w-12 h-12 rounded"
+                        />
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{track.name}</div>
+                      <div className="text-sm text-gray-400 truncate">
+                        {track.artists.map((a) => a.name).join(", ")}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {/* Combined workout types and BPM */}
+                      <div className="flex items-center gap-2">
+                        {/* Workout type badges first */}
+                        {trackWorkoutTypes.length > 0 && (
+                          <div className="flex gap-1">
+                            {trackWorkoutTypes.map((type: WorkoutType) => (
+                              <SmallWorkoutBadge key={type} type={type} />
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Show BPM after workout types */}
+                        {trackBPMData && (
+                          <div className="px-3 py-1.5 bg-white/5 rounded-md">
+                            <span className="font-mono text-sm text-gray-300">
+                              {Math.round(trackBPMData)} BPM
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-sm text-gray-400">
+                        {Math.floor(track.duration_ms / 60000)}:
+                        {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          router.push(`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`);
+                        }}
+                      >
+                        {hasConfiguration ? "Edit" : "Configure"}
+                      </Button>
                     </div>
                   </div>
-                  
-                  {hasConfig && (
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-green-400" />
-                      Configured
-                    </div>
-                  )}
-                  
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="sm" variant="ghost">
-                      Edit Workout
-                    </Button>
-                  </div>
-                </Link>
-              )
+                </div>
+              );
             })}
           </div>
         </div>

@@ -11,7 +11,7 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FastForwardIcon from '@mui/icons-material/FastForward';
-import { Track, PlaybackState, TrackBPM, Segment , getStorageKey, WorkoutType, WORKOUT_LABELS, SEGMENT_COLORS } from "../types";
+import { Track, PlaybackState, TrackBPM, Segment , getStorageKey, WorkoutType, WORKOUT_LABELS } from "../types";
 import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
@@ -165,7 +165,7 @@ const GlobalWorkoutTimeline = ({
         />
       ))}
 
-      {/* Intensity bars with stacked workout badges */}
+      {/* Intensity bars - remove bottom padding since we removed badges */}
       <div className="absolute inset-0">
         {allSegments.map((segment, index) => {
           const startPercent = (segment.absoluteStartTime / totalDuration) * 100;
@@ -193,21 +193,9 @@ const GlobalWorkoutTimeline = ({
                 left: `${startPercent}%`,
                 width: `${widthPercent}%`,
                 height: `${heightPercent}%`,
-                bottom: '24px' // Add space for badges at bottom
+                bottom: '0' // Remove the bottom padding
               }}
             >
-              {/* Stacked workout badges inside the segment */}
-              {widthPercent > 3 && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-1">
-                  <div className={`${SEGMENT_COLORS[segment.type]} px-2 py-0.5 
-                    rounded text-xs font-bold whitespace-nowrap opacity-60 backdrop-blur-sm
-                    shadow-lg`}
-                  >
-                    {WORKOUT_LABELS[segment.type]}
-                  </div>
-                </div>
-              )}
-
               {/* Enhanced tooltip */}
               <div className="absolute inset-0 flex items-center justify-center group">
                 <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2
@@ -224,33 +212,6 @@ const GlobalWorkoutTimeline = ({
         })}
       </div>
 
-      {/* Workout type badges at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 h-6 bg-black/40">
-        {allSegments.map((segment, index) => {
-          const startPercent = (segment.absoluteStartTime / totalDuration) * 100;
-          const widthPercent = ((segment.absoluteEndTime - segment.absoluteStartTime) / totalDuration) * 100;
-          const isCurrentTrack = segment.trackIndex === currentTrackIndex;
-
-          return widthPercent > 5 ? (
-            <div 
-              key={`badge-${segment.trackIndex}-${segment.id}-${index}`}
-              className="absolute h-full flex items-center justify-center"
-              style={{
-                left: `${startPercent}%`,
-                width: `${widthPercent}%`,
-              }}
-            >
-              <div className={`${SEGMENT_COLORS[segment.type]} px-2 py-0.5 
-                rounded text-xs font-bold whitespace-nowrap
-                ${isCurrentTrack ? 'opacity-100' : 'opacity-30'}`}
-              >
-                {WORKOUT_LABELS[segment.type]}
-              </div>
-            </div>
-          ) : null;
-        })}
-      </div>
-
       {/* Current position indicator */}
       <div 
         className="absolute top-0 bottom-0 w-0.5 bg-white z-30"
@@ -260,8 +221,8 @@ const GlobalWorkoutTimeline = ({
         }}
       />
 
-      {/* Progress bar - move above the badges */}
-      <div className="absolute bottom-6 left-0 right-0 h-1 bg-white/10">
+      {/* Progress bar - move to bottom since we removed badges */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
         <div 
           className="h-full bg-white/30"
           style={{
