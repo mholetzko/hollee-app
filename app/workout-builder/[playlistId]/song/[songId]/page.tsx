@@ -234,27 +234,28 @@ interface SongBPMData {
 
 // Add a helper function for localStorage BPM operations
 const BPMStorage = {
-  getKey: (trackId: string) => `bpm_${trackId}`,
+  getKey: (playlistId: string, trackId: string) => `${playlistId}_${trackId}`,
   
-  save: (trackId: string, bpm: number, source: string) => {
-    console.log("[BPM Storage] Saving BPM:", { trackId, bpm, source });
+  save: (playlistId: string, trackId: string, bpm: number, source: string) => {
+    console.log("[BPM Storage] Saving BPM:", { playlistId, trackId, bpm, source });
     try {
-      const data = { bpm, source, timestamp: Date.now() };
-      localStorage.setItem(BPMStorage.getKey(trackId), JSON.stringify(data));
+      const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") || "{}");
+      savedBPMs[BPMStorage.getKey(playlistId, trackId)] = bpm;
+      localStorage.setItem("savedBPMs", JSON.stringify(savedBPMs));
       console.log("[BPM Storage] Successfully saved BPM data");
     } catch (error) {
       console.error("[BPM Storage] Error saving BPM:", error);
     }
   },
   
-  load: (trackId: string) => {
+  load: (playlistId: string, trackId: string) => {
     console.log("[BPM Storage] Loading BPM for track:", trackId);
     try {
-      const stored = localStorage.getItem(BPMStorage.getKey(trackId));
-      if (stored) {
-        const data = JSON.parse(stored);
-        console.log("[BPM Storage] Found stored BPM:", data);
-        return data;
+      const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") || "{}");
+      const bpm = savedBPMs[BPMStorage.getKey(playlistId, trackId)];
+      if (bpm) {
+        console.log("[BPM Storage] Found stored BPM:", bpm);
+        return { bpm, source: "manual" };
       }
       console.log("[BPM Storage] No stored BPM found");
       return null;
@@ -286,7 +287,10 @@ const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
   console.log("[BPM Extract] Starting BPM extraction for track:", track.name);
 
   // 1. Check localStorage first
-  const stored = BPMStorage.load(track.id);
+  const stored = BPMStorage.load(
+    resolvedParams.playlistId,
+    track.id
+  );
   if (stored) {
     console.log("[BPM Extract] Using stored BPM:", stored);
     return {
@@ -305,7 +309,12 @@ const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
       bpm: titleBPM,
       source: "title" as const,
     };
-    BPMStorage.save(track.id, titleBPM, "title");
+    BPMStorage.save(
+      resolvedParams.playlistId,
+      track.id,
+      titleBPM,
+      "title"
+    );
     return result;
   }
 
@@ -331,7 +340,12 @@ const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
         const titleMatch = extractBPMFromTitle(title);
         if (titleMatch) {
           console.log("[BPM Extract] Found BPM in YouTube title:", titleMatch);
-          BPMStorage.save(track.id, titleMatch, "youtube");
+          BPMStorage.save(
+            resolvedParams.playlistId,
+            track.id,
+            titleMatch,
+            "youtube"
+          );
           return {
             songId: track.id,
             bpm: titleMatch,
@@ -346,7 +360,12 @@ const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
             "[BPM Extract] Found BPM in YouTube description:",
             descriptionMatch
           );
-          BPMStorage.save(track.id, descriptionMatch, "youtube");
+          BPMStorage.save(
+            resolvedParams.playlistId,
+            track.id,
+            descriptionMatch,
+            "youtube"
+          );
           return {
             songId: track.id,
             bpm: descriptionMatch,
@@ -363,7 +382,12 @@ const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
   // 4. If all else fails, return default
   console.log("[BPM Extract] Using default BPM: 128");
   const defaultBPM = 128;
-  BPMStorage.save(track.id, defaultBPM, "manual");
+  BPMStorage.save(
+    resolvedParams.playlistId,
+    track.id,
+    defaultBPM,
+    "manual"
+  );
   return {
     songId: track.id,
     bpm: defaultBPM,
@@ -970,13 +994,11 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         track: track?.id,
       });
 
-      // Update parent state
       onChange(newValue);
-
-      // Save to storage
+      
+      // Save immediately when BPM changes
       if (track) {
-        BPMStorage.save(track.id, newValue, "manual");
-        console.log("[BPM Input] Saved new manual BPM");
+        BPMStorage.save(resolvedParams.playlistId, track.id, newValue, "manual");
       }
     };
 
@@ -1128,7 +1150,10 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         setTrack(data);
 
         // Try to load BPM from storage first
-        const storedBPM = BPMStorage.load(data.id);
+        const storedBPM = BPMStorage.load(
+          resolvedParams.playlistId,
+          data.id
+        );
         if (storedBPM) {
           console.log("[Track Load] Using stored BPM:", storedBPM);
           wrappedSetTrackBPM({
