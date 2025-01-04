@@ -39,7 +39,7 @@ interface Segment {
 }
 
 // Add workout types enum
-type WorkoutType =
+type WorkoutType = 
   | "PLS"
   | "SEATED_ROAD"
   | "SEATED_CLIMB"
@@ -113,10 +113,10 @@ const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
 };
 
 // Add this component for the workout display
-const WorkoutDisplay = ({
-  segment,
+const WorkoutDisplay = ({ 
+  segment, 
   isNext = false,
-}: {
+}: { 
   segment?: Segment;
   isNext?: boolean;
 }) => {
@@ -141,9 +141,9 @@ const WorkoutDisplay = ({
 };
 
 // Add this component for BPM visualization
-const BPMVisualization = ({
-  bpm,
-  duration,
+const BPMVisualization = ({ 
+  bpm, 
+  duration, 
   currentPosition,
   isPlaying,
 }: {
@@ -155,14 +155,14 @@ const BPMVisualization = ({
   const beatInterval = 60000 / bpm;
   const totalBeats = Math.floor(duration / beatInterval);
   const currentBeat = Math.floor(currentPosition / beatInterval);
-
+  
   return (
     <div className="relative h-12 mb-4 bg-black/20 rounded">
       {/* BPM Display */}
       <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 px-3 py-1 rounded-full text-sm font-mono">
         {Math.round(bpm)} BPM
       </div>
-
+      
       {/* Beat markers */}
       <div className="absolute left-0 right-0 bottom-0 top-0">
         {Array.from({ length: totalBeats }).map((_, i) => {
@@ -170,7 +170,7 @@ const BPMVisualization = ({
           const isMeasureStart = i % 4 === 0;
           const isHalfBeat = i % 2 === 0; // Check for every second beat
           const isCurrentBeat = i === currentBeat;
-
+          
           return (
             <div
               key={`bpm-beat-${i}-${position}`}
@@ -184,7 +184,7 @@ const BPMVisualization = ({
                 }
                 ${isCurrentBeat && isPlaying ? "animate-pulse" : ""}
               `}
-              style={{
+              style={{ 
                 left: `${position}%`,
                 height: isMeasureStart ? "100%" : isHalfBeat ? "75%" : "50%", // Make half beats taller
                 marginTop: "auto",
@@ -197,7 +197,7 @@ const BPMVisualization = ({
 
       {/* Current position indicator */}
       {isPlaying && (
-        <div
+        <div 
           className={`absolute top-0 bottom-0 w-0.5 bg-white z-10 transition-all duration-100
             ${currentBeat % 2 === 0 ? "opacity-100" : "opacity-50"}`} // Pulse opacity on half beats
           style={{
@@ -235,7 +235,7 @@ interface SongBPMData {
 // Add a helper function for localStorage BPM operations
 const BPMStorage = {
   getKey: (trackId: string) => `bpm_${trackId}`,
-
+  
   save: (trackId: string, bpm: number, source: string) => {
     console.log("[BPM Storage] Saving BPM:", { trackId, bpm, source });
     try {
@@ -246,7 +246,7 @@ const BPMStorage = {
       console.error("[BPM Storage] Error saving BPM:", error);
     }
   },
-
+  
   load: (trackId: string) => {
     console.log("[BPM Storage] Loading BPM for track:", trackId);
     try {
@@ -270,14 +270,14 @@ const normalizeBPM = (
   bpm: number | { tempo: number; isManual: boolean } | null
 ) => {
   if (!bpm) return null;
-
+  
   if (typeof bpm === "number") {
     return {
       tempo: bpm,
       isManual: true,
     };
   }
-
+  
   return bpm;
 };
 
@@ -315,18 +315,18 @@ const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
     const query = `${track.name} ${track.artists[0].name} BPM`;
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/search?` +
-        `part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5` +
-        `&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
+      `part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5` +
+      `&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
     );
 
     if (response.ok) {
       const data = await response.json();
       console.log("[BPM Extract] YouTube search results:", data.items.length);
-
+      
       for (const item of data.items) {
         const title = item.snippet.title;
         const description = item.snippet.description;
-
+        
         // Check title first
         const titleMatch = extractBPMFromTitle(title);
         if (titleMatch) {
@@ -392,9 +392,9 @@ const useMetronomeSound = () => {
 };
 
 // Update the BeatCountdown component
-const BeatCountdown = ({
-  currentPosition,
-  nextSegmentStart,
+const BeatCountdown = ({ 
+  currentPosition, 
+  nextSegmentStart, 
   bpm,
   nextSegment,
 }: {
@@ -407,7 +407,7 @@ const BeatCountdown = ({
   const [smoothPosition, setSmoothPosition] = useState(currentPosition);
   const lastUpdateTime = useRef(Date.now());
   const animationFrameRef = useRef<number>();
-
+  
   // Smooth position update using requestAnimationFrame
   useEffect(() => {
     const updatePosition = () => {
@@ -423,12 +423,12 @@ const BeatCountdown = ({
         }
         return newPosition;
       });
-
+      
       animationFrameRef.current = requestAnimationFrame(updatePosition);
     };
-
+    
     animationFrameRef.current = requestAnimationFrame(updatePosition);
-
+    
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -440,7 +440,7 @@ const BeatCountdown = ({
   const currentBeat = Math.floor(smoothPosition / beatDuration);
   const nextSegmentBeat = Math.floor(nextSegmentStart / beatDuration);
   const beatsUntilNext = nextSegmentBeat - currentBeat;
-
+  
   // Play click on each beat change
   const lastBeatRef = useRef(currentBeat);
   useEffect(() => {
@@ -454,7 +454,7 @@ const BeatCountdown = ({
     <div className="flex-1 max-w-[300px] bg-white/10 rounded-lg p-6 flex flex-col items-center justify-center relative overflow-hidden">
       {/* Animated background rings */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div
+        <div 
           className={`absolute w-64 h-64 rounded-full border-4 opacity-20
             ${
               beatsUntilNext <= 4
@@ -466,7 +466,7 @@ const BeatCountdown = ({
             animate-ping-slow
           `}
         />
-        <div
+        <div 
           className={`absolute w-48 h-48 rounded-full border-2 opacity-30
             ${
               beatsUntilNext <= 4
@@ -481,7 +481,7 @@ const BeatCountdown = ({
       </div>
 
       {/* Beat pulse animation */}
-      <div
+      <div 
         className="absolute inset-0 bg-white/5"
         style={{
           animation: "beatPulse 60s linear infinite",
@@ -491,7 +491,7 @@ const BeatCountdown = ({
 
       {/* Content */}
       <div className="relative text-center z-10">
-        <div
+        <div 
           className={`text-8xl font-bold font-mono mb-2
             ${
               beatsUntilNext <= 4
@@ -509,7 +509,7 @@ const BeatCountdown = ({
           {formatDuration(nextSegmentStart - currentPosition)} left
         </div>
         {nextSegment && (
-          <div
+          <div 
             className={`text-lg ${
               SEGMENT_COLORS[nextSegment.type]
             } px-3 py-1 rounded-full
@@ -581,7 +581,7 @@ const TransportControls = ({
         window.removeEventListener("mousemove", handleDrag as any);
         window.removeEventListener("mouseup", handleEndDrag);
       };
-    }
+      }
   }, [isDragging]);
 
   // Update dragPosition when not dragging
@@ -624,12 +624,12 @@ const TransportControls = ({
         <div className="text-sm font-mono">
           {formatDuration(isDragging ? dragPosition : position)}
         </div>
-        <div
+        <div 
           ref={progressRef}
           className="flex-1 h-2 bg-white/10 rounded-full cursor-pointer group"
           onMouseDown={handleStartDrag}
         >
-          <div
+          <div 
             className="h-full bg-white/50 rounded-full relative"
             style={{
               width: `${
@@ -639,13 +639,13 @@ const TransportControls = ({
           >
             <div
               className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full 
-              opacity-0 group-hover:opacity-100 transition-opacity"
+              opacity-0 group-hover:opacity-100 transition-opacity" 
             />
           </div>
         </div>
         <div className="text-sm font-mono">{formatDuration(duration)}</div>
+        </div>
       </div>
-    </div>
   );
 };
 
@@ -690,9 +690,9 @@ const loadTrackData = (playlistId: string, songId: string) => {
 
 // Update the saveTrackData function
 const saveTrackData = (
-  playlistId: string,
-  songId: string,
-  segments: Segment[],
+  playlistId: string, 
+  songId: string, 
+  segments: Segment[], 
   bpm: TrackBPM
 ) => {
   console.log("[Save Track Data] Saving:", {
@@ -701,7 +701,7 @@ const saveTrackData = (
     segments: segments.length,
     bpm,
   });
-
+  
   try {
     // Save segments
     localStorage.setItem(
@@ -729,7 +729,7 @@ const LoadingState = () => {
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
       <div className="animate-spin h-8 w-8 border-2 border-white/50 rounded-full border-t-transparent" />
       <div className="text-sm text-gray-400">Loading track...</div>
-    </div>
+      </div>
   );
 };
 
@@ -902,19 +902,19 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       console.log("[BPM Init] Window not defined");
       return { tempo: 128, isManual: true };
     }
-
+    
     console.log("[BPM Init] Starting BPM initialization for:", {
       playlistId: resolvedParams.playlistId,
       songId: resolvedParams.songId,
     });
-
+    
     // Try to load from storage first
     const { bpm } = loadTrackData(
       resolvedParams.playlistId,
       resolvedParams.songId
     );
     console.log("[BPM Init] Loaded data:", { bpm });
-
+    
     if (bpm) {
       console.log("[BPM Init] Using stored BPM:", bpm);
       return bpm;
@@ -926,7 +926,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       console.log("[BPM Init] Using BPM from title:", bpmFromTitle);
       return { tempo: bpmFromTitle, isManual: false };
     }
-
+    
     // Only use 128 if we have no other source
     console.log("[BPM Init] No BPM sources found, using default 128");
     return { tempo: 128, isManual: false };
@@ -952,7 +952,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   }) => {
     const handleBPMChange = (newValue: number) => {
       if (isNaN(newValue)) return;
-
+      
       console.log("[BPM Input] Updating BPM:", {
         oldValue: value,
         newValue,
@@ -982,7 +982,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
           />
           <span className="text-xl text-gray-400 font-mono">BPM</span>
         </div>
-        <a
+        <a 
           href={
             track
               ? `https://songbpm.com/@${track.artists[0]?.name
@@ -992,7 +992,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                   .replace(/\s+/g, "-")}`
               : "#"
           }
-          target="_blank"
+          target="_blank" 
           rel="noopener noreferrer"
           className="text-sm text-blue-400 hover:text-blue-300 underline"
         >
@@ -1032,17 +1032,17 @@ export default function SongSegmentEditor({ params }: { params: any }) {
           setPlayer(spotifyPlayer);
           setIsPlayerReady(true);
 
-          // Transfer playback to this device
+        // Transfer playback to this device
           fetch("https://api.spotify.com/v1/me/player", {
             method: "PUT",
-            headers: {
+          headers: {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              device_ids: [device_id],
-              play: false,
-            }),
+          },
+          body: JSON.stringify({
+            device_ids: [device_id],
+            play: false,
+          }),
           });
         }
       );
@@ -1092,7 +1092,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       console.log("[Track Load] Starting fetch:", {
         songId: resolvedParams.songId,
       });
-
+      
       try {
         const accessToken = localStorage.getItem("spotify_access_token");
         if (!accessToken) {
@@ -1146,14 +1146,14 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   // Update the save effect
   useEffect(() => {
     if (!track || !trackBPM) return;
-
+    
     console.log("[Save Effect] Saving track data:", {
       trackId: track.id,
       segments: segments.length,
       bpm: trackBPM,
       trigger: "segments or trackBPM change",
     });
-
+    
     // Debounce the save to prevent too many writes
     const timeoutId = setTimeout(() => {
       saveTrackData(resolvedParams.playlistId, track.id, segments, trackBPM);
@@ -1207,10 +1207,10 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     }
 
     const newSegment: Segment = {
-      id: crypto.randomUUID(),
-      startTime,
+        id: crypto.randomUUID(),
+        startTime,
       endTime,
-      title: `Segment ${segments.length + 1}`,
+        title: `Segment ${segments.length + 1}`,
       type: "SEATED_ROAD",
       intensity: 75,
     };
@@ -1246,33 +1246,33 @@ export default function SongSegmentEditor({ params }: { params: any }) {
           `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
           {
             method: "PUT",
-            headers: {
+          headers: {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              uris: [`spotify:track:${track.id}`],
-              position_ms: playbackState.position,
-            }),
+          },
+          body: JSON.stringify({
+            uris: [`spotify:track:${track.id}`],
+            position_ms: playbackState.position,
+          }),
           }
         );
-
+        
         // Wait a short moment for the player to update
         await new Promise((resolve) => setTimeout(resolve, 100));
         await player.resume();
-
+        
         setPlaybackState((prev) => ({
           ...prev,
           isPlaying: true,
         }));
       } else {
         await player.pause();
-
+        
         setPlaybackState((prev) => ({
           ...prev,
           isPlaying: false,
         }));
-
+        
         // Clear interval when paused
         if (progressInterval.current) {
           clearInterval(progressInterval.current);
@@ -1287,7 +1287,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     (position: number) => {
       if (!player || !isPlayerReady) return;
 
-      // Ensure position is within bounds
+    // Ensure position is within bounds
       const boundedPosition = Math.max(
         0,
         Math.min(position, track?.duration_ms || 0)
@@ -1297,7 +1297,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         .seek(boundedPosition)
         .then(() => {
           setPlaybackState((prev) => ({
-            ...prev,
+        ...prev,
             position: boundedPosition,
           }));
         })
@@ -1332,7 +1332,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
             s.id === segment.id ? { ...s, startTime: updatedTime } : s
           )
         );
-      } else {
+    } else {
         const minTime = segment.startTime + 1000;
         const maxTime = next ? next.startTime : track.duration_ms;
         updatedTime = Math.max(minTime, Math.min(maxTime, updatedTime));
@@ -1401,8 +1401,8 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       if (!track) return;
 
       const bpmData = await getBPMFromSources(track);
-      setTrackBPM({
-        tempo: bpmData.bpm,
+      setTrackBPM({ 
+        tempo: bpmData.bpm, 
         isManual: bpmData.source === "manual",
       });
     };
@@ -1429,8 +1429,8 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   if (loading || !track) {
     return (
       <LoadingState
-        songId={resolvedParams.songId}
-        playlistId={resolvedParams.playlistId}
+      songId={resolvedParams.songId} 
+      playlistId={resolvedParams.playlistId} 
       />
     );
   }
@@ -1473,7 +1473,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
             {/* BPM input stays in header */}
             <div className="ml-auto text-center min-w-[300px]">
               <div className="bg-white/5 px-6 py-4 rounded-lg">
-                <BPMInput
+                <BPMInput 
                   value={trackBPM.tempo}
                   onChange={(bpm) =>
                     setTrackBPM({ tempo: bpm, isManual: true })
@@ -1496,11 +1496,11 @@ export default function SongSegmentEditor({ params }: { params: any }) {
               {(() => {
                 const { currentSegment, nextSegment } =
                   getCurrentAndNextSegment(playbackState.position, segments);
-
+                
                 return (
                   <>
                     <WorkoutDisplay segment={currentSegment} />
-                    <BeatCountdown
+                    <BeatCountdown 
                       currentPosition={playbackState.position}
                       nextSegmentStart={
                         nextSegment?.startTime ?? track.duration_ms
@@ -1528,7 +1528,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
 
               return (
                 <div className="h-1 bg-white/10 mt-2 rounded-full overflow-hidden">
-                  <div
+                  <div 
                     className="h-full bg-white/50 transition-all duration-1000"
                     style={{ width: `${segmentProgress}%` }}
                   />
@@ -1575,8 +1575,8 @@ export default function SongSegmentEditor({ params }: { params: any }) {
 
               {/* BPM visualization */}
               {trackBPM && (
-                <BPMVisualization
-                  bpm={trackBPM.tempo}
+                <BPMVisualization 
+                  bpm={trackBPM.tempo} 
                   duration={track.duration_ms}
                   currentPosition={playbackState.position}
                   isPlaying={playbackState.isPlaying}
@@ -1584,12 +1584,12 @@ export default function SongSegmentEditor({ params }: { params: any }) {
               )}
 
               {/* Timeline */}
-              <div
+              <div 
                 ref={timelineRef}
                 className="relative h-32 bg-white/10 rounded"
               >
                 {/* Vertical progress bar */}
-                <div
+                <div 
                   className="absolute top-0 bottom-0 w-0.5 bg-white/50 z-20 transition-all duration-100"
                   style={{
                     left: `${
@@ -1611,7 +1611,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                         100;
                       const isMeasureStart = i % 4 === 0;
                       const isHalfBeat = i % 2 === 0;
-
+                      
                       return (
                         <div
                           key={`beat-${i}-${position}`}
@@ -1622,7 +1622,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                               ? "bg-white/15"
                               : "bg-white/5"
                           }`}
-                          style={{
+                          style={{ 
                             left: `${position}%`,
                             height: isMeasureStart
                               ? "100%"
@@ -1642,7 +1642,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                   .map((segment) => {
                     const isCurrentSegment =
                       playbackState.isPlaying &&
-                      playbackState.position >= segment.startTime &&
+                      playbackState.position >= segment.startTime && 
                       playbackState.position < segment.endTime;
 
                     return (
@@ -1669,7 +1669,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                         }}
                       >
                         {/* Drag handles remain the same */}
-                        <div
+                        <div 
                           className="absolute left-0 top-0 bottom-0 w-2 bg-white/20 cursor-ew-resize 
                             hover:bg-white/60 group-hover:bg-white/40 transition-colors"
                           onMouseDown={(e) =>
@@ -1678,7 +1678,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                         >
                           <div className="h-8 w-1 bg-white/60 rounded hidden group-hover:block" />
                         </div>
-                        <div
+                        <div 
                           className="absolute right-0 top-0 bottom-0 w-2 bg-white/20 cursor-ew-resize 
                             hover:bg-white/60 group-hover:bg-white/40 transition-colors"
                           onMouseDown={(e) =>
@@ -1742,9 +1742,9 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                           onChange={(e) => {
                             setSegments(
                               segments.map((s) =>
-                                s.id === segment.id
-                                  ? { ...s, title: e.target.value }
-                                  : s
+                              s.id === segment.id
+                                ? { ...s, title: e.target.value }
+                                : s
                               )
                             );
                           }}
@@ -1758,7 +1758,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                             onChange={(newTime) => {
                               setSegments(
                                 segments.map((s) =>
-                                  s.id === segment.id
+                                    s.id === segment.id
                                     ? { ...s, startTime: newTime }
                                     : s
                                 )
@@ -1776,16 +1776,16 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                             onChange={(newTime) => {
                               setSegments(
                                 segments.map((s) =>
-                                  s.id === segment.id
+                                    s.id === segment.id
                                     ? { ...s, endTime: newTime }
-                                    : s
+                                      : s
                                 )
                               );
-                            }}
+                              }}
                             segments={segments}
                             segmentId={segment.id}
                             isStart={false}
-                          />
+                            />
                           <div className="text-sm text-gray-400">
                             Duration:{" "}
                             {msToTimeStr(segment.endTime - segment.startTime)}
@@ -1800,21 +1800,21 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                           onChange={(e) => {
                             setSegments(
                               segments.map((s) =>
-                                s.id === segment.id
+                              s.id === segment.id
                                   ? {
                                       ...s,
                                       type: e.target.value as WorkoutType,
                                     }
-                                  : s
+                                : s
                               )
                             );
                           }}
                         >
                           {Object.entries(WORKOUT_LABELS).map(
                             ([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
                             )
                           )}
                         </select>
@@ -1854,9 +1854,9 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                                 const value = parseInt(e.target.value);
                                 setSegments(
                                   segments.map((s) =>
-                                    s.id === segment.id
-                                      ? { ...s, intensity: value }
-                                      : s
+                                  s.id === segment.id
+                                    ? { ...s, intensity: value }
+                                    : s
                                   )
                                 );
                               }}
@@ -1871,7 +1871,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                               onClick={() => {
                                 setSegments(
                                   segments.map((s) =>
-                                    s.id === segment.id
+                                  s.id === segment.id
                                       ? {
                                           ...s,
                                           intensity:
@@ -1909,4 +1909,4 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       </div>
     </div>
   );
-}
+} 

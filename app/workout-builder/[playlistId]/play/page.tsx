@@ -11,7 +11,7 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FastForwardIcon from '@mui/icons-material/FastForward';
-import { Track, PlaybackState, TrackBPM, Segment , getStorageKey, WorkoutType, WORKOUT_LABELS } from "../types";
+import { Track, PlaybackState, TrackBPM, Segment , getStorageKey, WorkoutType, WORKOUT_LABELS, SEGMENT_COLORS } from "../types";
 import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
@@ -67,10 +67,10 @@ const WorkoutBadge = ({ type }: { type: WorkoutType }) => {
   };
 
   return (
-    <div className={`px-6 py-4 rounded-lg ${badgeStyles[type].bg} 
+    <div className={`px-4 py-2 rounded-lg ${badgeStyles[type].bg} 
       flex flex-col items-center justify-center`}
     >
-      <div className={`text-3xl font-bold ${badgeStyles[type].text}`}>
+      <div className={`text-2xl font-bold ${badgeStyles[type].text}`}>
         {WORKOUT_LABELS[type]}
       </div>
     </div>
@@ -91,10 +91,185 @@ const SmallWorkoutBadge = ({ type }: { type: WorkoutType }) => {
   };
 
   return (
-    <div className={`px-2 py-0.5 rounded ${badgeStyles[type].bg} ${badgeStyles[type].text} 
-      text-xs font-medium`}
+    <div className={`px-3 py-1.5 rounded-md ${badgeStyles[type].bg} ${badgeStyles[type].text} 
+      text-sm font-medium`}
     >
       {WORKOUT_LABELS[type]}
+    </div>
+  );
+};
+
+// Add this new component for the global timeline
+const GlobalWorkoutTimeline = ({ 
+  tracks, 
+  segments: currentTrackSegments,
+  playlistId,
+  currentTrackIndex,
+  currentPosition,
+  currentTrackStartTime
+}: { 
+  tracks: Track[],
+  segments: Segment[],
+  playlistId: string,
+  currentTrackIndex: number,
+  currentPosition: number,
+  currentTrackStartTime: number
+}) => {
+  const trackStartTimes = tracks.reduce<number[]>((acc, _, index) => {
+    if (index === 0) return [0];
+    const prevTrack = tracks[index - 1];
+    return [...acc, acc[index - 1] + prevTrack.duration_ms];
+  }, []);
+
+  const totalDuration = trackStartTimes[trackStartTimes.length - 1] + 
+    tracks[tracks.length - 1]?.duration_ms || 0;
+
+  // Get all segments from all tracks and sort them by start time
+  const allSegments = tracks.map((track, index) => {
+    const trackSegments = track.id === tracks[currentTrackIndex].id
+      ? currentTrackSegments
+      : JSON.parse(localStorage.getItem(getStorageKey(playlistId, track.id, 'segments')) || '[]');
+
+    return trackSegments.map((segment: Segment) => ({
+      ...segment,
+      absoluteStartTime: trackStartTimes[index] + segment.startTime,
+      absoluteEndTime: trackStartTimes[index] + segment.endTime,
+      trackIndex: index
+    }));
+  }).flat().sort((a, b) => a.absoluteStartTime - b.absoluteStartTime);
+
+  return (
+    <div className="relative h-32 bg-black/20 rounded-lg overflow-hidden">
+      {/* Grid lines */}
+      <div className="absolute inset-0 grid grid-rows-5 gap-0">
+        {[...Array(5)].map((_, i) => (
+          <div 
+            key={`grid-${i}`}
+            className="border-t border-white/10 relative"
+          >
+            <span className="absolute right-0 -top-3 px-2 text-xs text-white/40">
+              {100 - i * 20}%
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Track boundaries */}
+      {trackStartTimes.map((startTime, index) => (
+        <div
+          key={`track-boundary-${index}`}
+          className="absolute top-0 bottom-0 w-px bg-white/20"
+          style={{
+            left: `${(startTime / totalDuration) * 100}%`
+          }}
+        />
+      ))}
+
+      {/* Intensity bars with stacked workout badges */}
+      <div className="absolute inset-0">
+        {allSegments.map((segment, index) => {
+          const startPercent = (segment.absoluteStartTime / totalDuration) * 100;
+          const widthPercent = ((segment.absoluteEndTime - segment.absoluteStartTime) / totalDuration) * 100;
+          const heightPercent = segment.intensity === -1 ? 100 : segment.intensity;
+          const isCurrentTrack = segment.trackIndex === currentTrackIndex;
+
+          // Calculate intensity-based color
+          const intensityColor = segment.intensity === -1 
+            ? 'bg-red-500' 
+            : segment.intensity > 80 
+              ? 'bg-orange-500'
+              : segment.intensity > 60
+                ? 'bg-yellow-500'
+                : segment.intensity > 40
+                  ? 'bg-green-500'
+                  : 'bg-blue-500';
+
+          return (
+            <div
+              key={`bar-${segment.trackIndex}-${segment.id}-${index}`}
+              className={`absolute ${intensityColor} transition-opacity
+                ${isCurrentTrack ? 'opacity-80' : 'opacity-30'}`}
+              style={{
+                left: `${startPercent}%`,
+                width: `${widthPercent}%`,
+                height: `${heightPercent}%`,
+                bottom: '24px' // Add space for badges at bottom
+              }}
+            >
+              {/* Stacked workout badges inside the segment */}
+              {widthPercent > 3 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-1">
+                  <div className={`${SEGMENT_COLORS[segment.type]} px-2 py-0.5 
+                    rounded text-xs font-bold whitespace-nowrap opacity-60 backdrop-blur-sm
+                    shadow-lg`}
+                  >
+                    {WORKOUT_LABELS[segment.type]}
+                  </div>
+                </div>
+              )}
+
+              {/* Enhanced tooltip */}
+              <div className="absolute inset-0 flex items-center justify-center group">
+                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                  bg-black/90 text-white text-sm rounded px-3 py-2 whitespace-nowrap z-30 shadow-lg">
+                  <div className="font-bold mb-1">{WORKOUT_LABELS[segment.type]}</div>
+                  <div className="text-xs text-gray-300">
+                    Intensity: {heightPercent}%<br/>
+                    Duration: {((segment.absoluteEndTime - segment.absoluteStartTime) / 1000).toFixed(0)}s
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Workout type badges at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 h-6 bg-black/40">
+        {allSegments.map((segment, index) => {
+          const startPercent = (segment.absoluteStartTime / totalDuration) * 100;
+          const widthPercent = ((segment.absoluteEndTime - segment.absoluteStartTime) / totalDuration) * 100;
+          const isCurrentTrack = segment.trackIndex === currentTrackIndex;
+
+          return widthPercent > 5 ? (
+            <div 
+              key={`badge-${segment.trackIndex}-${segment.id}-${index}`}
+              className="absolute h-full flex items-center justify-center"
+              style={{
+                left: `${startPercent}%`,
+                width: `${widthPercent}%`,
+              }}
+            >
+              <div className={`${SEGMENT_COLORS[segment.type]} px-2 py-0.5 
+                rounded text-xs font-bold whitespace-nowrap
+                ${isCurrentTrack ? 'opacity-100' : 'opacity-30'}`}
+              >
+                {WORKOUT_LABELS[segment.type]}
+              </div>
+            </div>
+          ) : null;
+        })}
+      </div>
+
+      {/* Current position indicator */}
+      <div 
+        className="absolute top-0 bottom-0 w-0.5 bg-white z-30"
+        style={{
+          left: `${((currentTrackStartTime + currentPosition) / totalDuration) * 100}%`,
+          transition: 'left 0.1s linear'
+        }}
+      />
+
+      {/* Progress bar - move above the badges */}
+      <div className="absolute bottom-6 left-0 right-0 h-1 bg-white/10">
+        <div 
+          className="h-full bg-white/30"
+          style={{
+            width: `${((currentTrackStartTime + currentPosition) / totalDuration) * 100}%`,
+            transition: 'width 0.1s linear'
+          }}
+        />
+      </div>
     </div>
   );
 };
@@ -619,6 +794,17 @@ export default function WorkoutPlayer({
     }
   }, [currentTrack, resolvedParams.playlistId]);
 
+  // Add this to your main component's state
+  const [currentTrackStartTime, setCurrentTrackStartTime] = useState(0);
+
+  // Update the currentTrackStartTime when track changes
+  useEffect(() => {
+    const startTime = tracks
+      .slice(0, currentTrackIndex)
+      .reduce((acc, track) => acc + track.duration_ms, 0);
+    setCurrentTrackStartTime(startTime);
+  }, [currentTrackIndex, tracks]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -635,111 +821,116 @@ export default function WorkoutPlayer({
   }
 
   return (
-    <div className="flex flex-col h-full">
-    {/* Header */}
-    <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
-      <div className="container mx-auto">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-4 hover:bg-white/10"
-          onClick={() => {
-            if (
-              typeof resolvedParams === "object" &&
-              resolvedParams !== null &&
-              "playlistId" in resolvedParams
-            ) {
-              router.push(`/workout-builder/${resolvedParams.playlistId}`);
-            } else {
-              router.push("/workout-builder/");
-            }
-          }}
-        >
-          <ArrowBackIcon className="w-4 h-4 mr-2" />
-          Back to Playlist
-        </Button>
-      </div>
-    </div>
+    <div className="flex h-screen">
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col h-full">
+        {/* Back button and Timeline section - reduce padding */}
+        <div className="flex-none bg-black/20 backdrop-blur-sm px-12 py-6 border-b border-white/10">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-4 hover:bg-white/10"
+            onClick={() => {
+              if (
+                typeof resolvedParams === "object" &&
+                resolvedParams !== null &&
+                "playlistId" in resolvedParams
+              ) {
+                router.push(`/workout-builder/${resolvedParams.playlistId}`);
+              } else {
+                router.push("/workout-builder/");
+              }
+            }}
+          >
+            <ArrowBackIcon className="w-4 h-4 mr-2" />
+            Back to Playlist
+          </Button>
 
-    {/* Header */}
-    <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
-      <div className="container mx-auto">
-        <div className="flex items-center gap-8">
-          {/* Album art and track info */}
-          <div className="flex items-center gap-6 flex-1">
-            {currentTrack.album?.images?.[0] && (
-              <img
-                src={currentTrack.album.images[0].url}
-                alt={currentTrack.name}
-                className="w-32 h-32 rounded"
-              />
-            )}
-            <div>
-              <h1 className="text-3xl font-bold">{currentTrack.name}</h1>
-              <p className="text-gray-400">
-                {currentTrack.artists.map((a) => a.name).join(", ")}
-              </p>
-            </div>
+          <div className="mt-4">
+            <GlobalWorkoutTimeline
+              tracks={tracks}
+              segments={segments}
+              playlistId={resolvedParams.playlistId}
+              currentTrackIndex={currentTrackIndex}
+              currentPosition={playbackState.position}
+              currentTrackStartTime={currentTrackStartTime}
+            />
           </div>
+        </div>
 
-          {/* Workout types and BPM Display */}
-          <div className="flex items-center gap-6">
-            {/* Workout type badges */}
-            <div className="flex gap-4">
-              {getUniqueWorkoutTypes(segments).map(type => (
-                <WorkoutBadge key={type} type={type} />
-              ))}
+        {/* Track info header - make more compact */}
+        <div className="flex-none bg-black/20 backdrop-blur-sm px-12 py-6 border-b border-white/10">
+          <div className="flex items-center gap-8">
+            {/* Album art and track info */}
+            <div className="flex items-center gap-6 flex-1">
+              {currentTrack.album?.images?.[0] && (
+                <img
+                  src={currentTrack.album.images[0].url}
+                  alt={currentTrack.name}
+                  className="w-24 h-24 rounded"
+                />
+              )}
+              <div>
+                <h1 className="text-2xl font-bold mb-1">{currentTrack.name}</h1>
+                <p className="text-sm text-gray-400">
+                  {currentTrack.artists.map((a) => a.name).join(", ")}
+                </p>
+              </div>
             </div>
 
-            {/* BPM Display */}
-            <div className="flex flex-col items-center justify-center px-8 py-4 bg-white/5 rounded-lg">
-              <div className="text-5xl font-mono font-bold text-white/90 mb-1">
-                {Math.round(trackBPM.tempo)}
+            {/* Workout types and BPM Display */}
+            <div className="flex items-center gap-6">
+              <div className="flex gap-4">
+                {getUniqueWorkoutTypes(segments).map(type => (
+                  <WorkoutBadge key={type} type={type} />
+                ))}
               </div>
-              <div className="text-sm text-gray-400 uppercase tracking-wider">
-                BPM
+
+              <div className="flex flex-col items-center justify-center px-6 py-4 bg-white/5 rounded-lg">
+                <div className="text-4xl font-mono font-bold text-white/90 mb-1">
+                  {Math.round(trackBPM.tempo)}
+                </div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider">
+                  BPM
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    {/* Fixed workout display with beat counter */}
-    {playbackState.isPlaying && (
-      <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
-        <div className="container mx-auto py-4">
-          <div className="flex gap-4 items-stretch">
-            {(() => {
-              const { currentSegment, nextSegment } =
-                getCurrentAndNextSegment(playbackState.position, segments);
+        {/* Fixed workout display - reduce padding */}
+        {playbackState.isPlaying && (
+          <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
+            <div className="py-4 px-12">
+              <div className="flex gap-4">
+                {(() => {
+                  const { currentSegment, nextSegment } =
+                    getCurrentAndNextSegment(playbackState.position, segments);
 
-              return (
-                <>
-                  <WorkoutDisplay segment={currentSegment} />
-                  <BeatCountdown
-                    currentPosition={playbackState.position}
-                    nextSegmentStart={
-                      nextSegment?.startTime ?? currentTrack.duration_ms
-                    }
-                    bpm={trackBPM.tempo}
-                    nextSegment={nextSegment}
-                  />
-                  <WorkoutDisplay segment={nextSegment} isNext />
-                </>
-              );
-            })()}
+                  return (
+                    <>
+                      <WorkoutDisplay segment={currentSegment} />
+                      <BeatCountdown
+                        currentPosition={playbackState.position}
+                        nextSegmentStart={
+                          nextSegment?.startTime ?? currentTrack.duration_ms
+                        }
+                        bpm={trackBPM.tempo}
+                        nextSegment={nextSegment}
+                      />
+                      <WorkoutDisplay segment={nextSegment} isNext />
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    )}
+        )}
 
-    {/* Main content */}
-    <div className="flex-1 overflow-y-auto">
-      <div className="px-8 py-8">
-        {/* Track progress and segments timeline */}
-        <div className="flex-none bg-black/20 p-4 mt-8">
-          <div className="w-full">
+        {/* Track progress and controls - adjust padding */}
+        <div className="flex-1 overflow-y-auto p-8">
+          {/* Track progress and segments timeline */}
+          <div className="flex-none bg-black/20 p-6 rounded-lg">
             <SegmentTimeline
               segments={segments}
               duration={currentTrack.duration_ms}
@@ -749,124 +940,128 @@ export default function WorkoutPlayer({
               bpm={trackBPM.tempo}
             />
           </div>
+
+          {/* Playback controls - increase margin and gap */}
+          <div className="flex justify-center items-center gap-6 mt-12">
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={playPreviousTrack}
+              disabled={currentTrackIndex === 0}
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+            >
+              <SkipPreviousIcon className="w-6 h-6" />
+            </Button>
+
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={togglePlayback}
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+            >
+              {playbackState.isPlaying ? (
+                <PauseIcon className="w-8 h-8" />
+              ) : (
+                <PlayArrowIcon className="w-8 h-8" />
+              )}
+            </Button>
+
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={debouncedPlayNextTrack}
+              disabled={currentTrackIndex === tracks.length - 1}
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+            >
+              <SkipNextIcon className="w-6 h-6" />
+            </Button>
+
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={jumpToNextSegment}
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+            >
+              <FastForwardIcon className="w-6 h-6" />
+            </Button>
+          </div>
         </div>
+      </div>
 
-        {/* Playback controls */}
-        <div className="flex justify-center items-center gap-4 mt-8">
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={playPreviousTrack}
-            disabled={currentTrackIndex === 0}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-          >
-            <SkipPreviousIcon className="w-6 h-6" />
-          </Button>
+      {/* Vertical separator - make it more visible */}
+      <div className="w-px bg-white/20" />
 
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={togglePlayback}
-            className="w-16 h-16 rounded-full flex items-center justify-center"
-          >
-            {playbackState.isPlaying ? (
-              <PauseIcon className="w-8 h-8" />
-            ) : (
-              <PlayArrowIcon className="w-8 h-8" />
-            )}
-          </Button>
-
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={debouncedPlayNextTrack}
-            disabled={currentTrackIndex === tracks.length - 1}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-          >
-            <SkipNextIcon className="w-6 h-6" />
-          </Button>
-
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={jumpToNextSegment}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-          >
-            <FastForwardIcon className="w-6 h-6" />
-          </Button>
+      {/* Track list sidebar - increase padding and spacing */}
+      <div className="w-[450px] flex-none bg-black/20 backdrop-blur-sm overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-white/10">
+          <h2 className="text-lg font-semibold">Current & Up Next</h2>
         </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 space-y-3">
+            {tracks
+              .slice(currentTrackIndex)
+              .map((track, index) => {
+                const actualIndex = currentTrackIndex + index;
+                const trackBPMData = JSON.parse(localStorage.getItem('savedBPMs') || '{}')[
+                  `${resolvedParams.playlistId}_${track.id}`
+                ];
+                
+                const trackSegments = JSON.parse(
+                  localStorage.getItem(
+                    getStorageKey(resolvedParams.playlistId, track.id, 'segments')
+                  ) || '[]'
+                );
+                
+                const trackWorkoutTypes = Array.from(
+                  new Set(trackSegments.map((s: Segment) => s.type))
+                );
 
-        {/* Track list */}
-        <div className="mt-8">
-          <div className="bg-black/20 rounded-lg p-4">
-            <h2 className="text-lg font-semibold mb-4">Current & Up Next</h2>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {tracks
-                .slice(currentTrackIndex)
-                .map((track, index) => {
-                  const actualIndex = currentTrackIndex + index;
-                  const trackBPMData = JSON.parse(localStorage.getItem('savedBPMs') || '{}')[
-                    `${resolvedParams.playlistId}_${track.id}`
-                  ];
-                  
-                  // Get segments for this track
-                  const trackSegments = JSON.parse(
-                    localStorage.getItem(
-                      getStorageKey(resolvedParams.playlistId, track.id, 'segments')
-                    ) || '[]'
-                  );
-                  
-                  // Get unique workout types for this track
-                  const trackWorkoutTypes = Array.from(
-                    new Set(trackSegments.map((s: Segment) => s.type))
-                  );
-
-                  return (
-                    <div
-                      key={`${track.id}-${actualIndex}`}
-                      className={`flex items-center p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
-                        ${actualIndex === currentTrackIndex ? "bg-white/10" : ""}`}
-                      onClick={() => {
-                        setCurrentTrackIndex(actualIndex);
-                        playTrack(track.id);
-                      }}
-                    >
-                      <div className="w-8 text-gray-400">{actualIndex + 1}</div>
+                return (
+                  <div
+                    key={`${track.id}-${actualIndex}`}
+                    className={`flex flex-col p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
+                      ${actualIndex === currentTrackIndex ? "bg-white/10" : ""}`}
+                    onClick={() => {
+                      setCurrentTrackIndex(actualIndex);
+                      playTrack(track.id);
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-gray-400">{actualIndex + 1}</div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">{track.name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="text-sm text-gray-400 truncate">
-                            {track.artists.map((a) => a.name).join(", ")}
-                          </div>
-                          {/* Workout type badges */}
-                          {trackWorkoutTypes.length > 0 && (
-                            <div className="flex gap-1 flex-wrap">
-                              {trackWorkoutTypes.map((type: WorkoutType) => (
-                                <SmallWorkoutBadge key={type} type={type} />
-                              ))}
-                            </div>
-                          )}
+                        <div className="text-sm text-gray-400 truncate">
+                          {track.artists.map((a) => a.name).join(", ")}
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        {/* BPM Display */}
-                        <div className="text-sm font-mono text-gray-400">
+                    </div>
+                    
+                    <div className="mt-2 flex items-center justify-between gap-4">
+                      {/* Workout type badges */}
+                      {trackWorkoutTypes.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {trackWorkoutTypes.map((type: WorkoutType) => (
+                            <SmallWorkoutBadge key={type} type={type} />
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-3 text-sm text-gray-400">
+                        <div className="font-mono">
                           {trackBPMData ? `${Math.round(trackBPMData)}` : '--'} BPM
                         </div>
-                        {/* Duration */}
-                        <div className="text-sm text-gray-400">
+                        <div>
                           {Math.floor(track.duration_ms / 60000)}:
                           {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-            </div>
+                  </div>
+                );
+              })}
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 }

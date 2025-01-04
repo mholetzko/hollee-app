@@ -56,3 +56,14 @@ export const WORKOUT_LABELS: Record<WorkoutType, string> = {
   WAVES: 'Wave',
   PUSHES: 'Push',
 } as const;
+
+export const SEGMENT_COLORS: Record<WorkoutType, string> = {
+  PLS: 'bg-purple-500/50',
+  SEATED_ROAD: 'bg-blue-500/50',
+  SEATED_CLIMB: 'bg-green-500/50',
+  STANDING_CLIMB: 'bg-yellow-500/50',
+  STANDING_JOGGING: 'bg-orange-500/50',
+  JUMPS: 'bg-red-500/50',
+  WAVES: 'bg-pink-500/50',
+  PUSHES: 'bg-indigo-500/50',
+} as const;
