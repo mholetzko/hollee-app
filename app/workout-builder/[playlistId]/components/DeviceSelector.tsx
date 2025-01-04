@@ -10,7 +10,10 @@ interface SpotifyDevice {
   type: string;
 }
 
-export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: (deviceId: string) => void }) => {
+export const DeviceSelector = ({ onDeviceSelected, mobileOnly = false }: { 
+  onDeviceSelected?: (deviceId: string) => void,
+  mobileOnly?: boolean 
+}) => {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +51,10 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: (devic
   const activateDevice = async (deviceId: string) => {
     const token = localStorage.getItem('spotify_access_token');
     try {
-      // First, transfer playback to the selected device
+      // Store the selected device ID for mobile use
+      localStorage.setItem('spotify_active_device', deviceId);
+      
+      // Transfer playback to the selected device
       await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
@@ -57,13 +63,10 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: (devic
         },
         body: JSON.stringify({
           device_ids: [deviceId],
-          play: false, // Don't start playing automatically
+          play: false, // Don't auto-play
         }),
       });
 
-      // Store the selected device ID in localStorage
-      localStorage.setItem('spotify_active_device', deviceId);
-      
       // Notify parent component
       onDeviceSelected?.(deviceId);
     } catch (error) {
@@ -71,6 +74,13 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: (devic
       setError('Failed to activate device. Please try again.');
     }
   };
+
+  // Filter devices if mobileOnly is true
+  const filteredDevices = mobileOnly 
+    ? devices.filter(device => 
+        ['Smartphone', 'Tablet', 'Speaker'].includes(device.type)
+      )
+    : devices;
 
   // Fetch devices when component mounts
   useEffect(() => {
@@ -93,7 +103,7 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: (devic
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4" />
             <p>Loading devices...</p>
           </div>
-        ) : devices.length === 0 ? (
+        ) : filteredDevices.length === 0 ? (
           <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-gray-400">No devices found. Please:</p>
@@ -109,7 +119,7 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: (devic
           </div>
         ) : (
           <div className="space-y-3">
-            {devices.map((device) => (
+            {filteredDevices.map((device) => (
               <button
                 key={device.id}
                 onClick={() => activateDevice(device.id)}

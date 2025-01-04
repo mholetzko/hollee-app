@@ -12,7 +12,7 @@ export const transferPlayback = async (deviceId: string | null) => {
     return;
   }
 
-  // For Web Playback SDK devices
+  // For Web Playback SDK devices or Spotify app devices
   await fetch('https://api.spotify.com/v1/me/player', {
     method: 'PUT',
     headers: {
@@ -21,7 +21,7 @@ export const transferPlayback = async (deviceId: string | null) => {
     },
     body: JSON.stringify({
       device_ids: [deviceId],
-      play: true,
+      play: false, // Don't auto-play, let the app control this
     }),
   });
 }; 
