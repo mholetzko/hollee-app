@@ -134,72 +134,68 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col bg-black text-white">
       <div className="flex-1 p-8">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white">HOLLEES Indoor Cycling Workout Builder</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold">Overview</h1>
           </div>
-          <Button
-            onClick={() => {
-              localStorage.removeItem("spotify_access_token");
-              router.push("/");
-            }}
-            variant="ghost"
-            className="text-gray-400 hover:text-white hover:bg-white/10"
-          >
-            <svg 
-              className="w-5 h-5 mr-2" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-              />
-            </svg>
-            Logout
-          </Button>
         </div>
 
-        <div className="mb-8 bg-white/5 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4 text-white">Quick Guide</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <div className="flex items-center gap-2 text-[#1DB954] mb-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="font-medium">Step 1: Select Playlist</span>
+        <div className="mb-8 bg-white/5 rounded-lg p-8">
+          <h2 className="text-xl font-semibold mb-6 text-white">Create Your Perfect Ride</h2>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-[#1DB954]">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">1</div>
+                <span className="font-medium">Prepare in Spotify</span>
               </div>
-              <p className="text-sm text-gray-400">Choose a playlist to transform into a workout routine</p>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Create a playlist in Spotify with your favorite tracks for the perfect riding experience
+              </p>
             </div>
-            <div>
-              <div className="flex items-center gap-2 text-[#1DB954] mb-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="font-medium">Step 2: Configure Songs</span>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-[#1DB954]">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">2</div>
+                <span className="font-medium">Select & Build</span>
               </div>
-              <p className="text-sm text-gray-400">Set workout segments and intensity for each track</p>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Choose your playlist below and start crafting your synchronized workout routine
+              </p>
             </div>
-            <div>
-              <div className="flex items-center gap-2 text-[#1DB954] mb-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="font-medium">Step 3: Start Workout</span>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-[#1DB954]">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">3</div>
+                <span className="font-medium">Design Segments</span>
               </div>
-              <p className="text-sm text-gray-400">Follow along with real-time tracking and BPM display</p>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Create workout segments for each track, matching intensity with the music&apos;s energy
+              </p>
             </div>
-            <div>
-              <div className="flex items-center gap-2 text-yellow-500 mb-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span className="font-medium">Step 4: Export Workout</span>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-[#1DB954]">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">4</div>
+                <span className="font-medium">Start Riding</span>
               </div>
-              <p className="text-sm text-gray-400">Save your workout configuration for backup or sharing</p>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Run your enhanced playlist with perfectly timed workout segments and BPM tracking
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-orange-400">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-400/10 text-orange-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                    />
+                  </svg>
+                </div>
+                <span className="font-medium">Don&apos;t Forget</span>
+              </div>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Your workout data is stored locally - use the export feature to save and backup your configurations
+              </p>
             </div>
           </div>
         </div>

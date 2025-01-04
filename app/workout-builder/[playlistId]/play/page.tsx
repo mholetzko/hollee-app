@@ -784,7 +784,7 @@ export default function WorkoutPlayer({
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-[calc(100vh-4rem)]">
       {/* Main content area */}
       <div className="flex-1 flex flex-col h-full">
         {/* Back button and Timeline section - reduce padding */}

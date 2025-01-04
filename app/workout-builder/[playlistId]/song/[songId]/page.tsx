@@ -1436,7 +1436,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Fixed header with song info and BPM */}
       <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
         <div className="container mx-auto">
