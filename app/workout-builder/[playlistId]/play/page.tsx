@@ -77,6 +77,28 @@ const WorkoutBadge = ({ type }: { type: WorkoutType }) => {
   );
 };
 
+// Add this small badge component for the track list
+const SmallWorkoutBadge = ({ type }: { type: WorkoutType }) => {
+  const badgeStyles: Record<WorkoutType, { bg: string, text: string }> = {
+    PLS: { bg: 'bg-purple-500/20', text: 'text-purple-300' },
+    SEATED_ROAD: { bg: 'bg-blue-500/20', text: 'text-blue-300' },
+    SEATED_CLIMB: { bg: 'bg-green-500/20', text: 'text-green-300' },
+    STANDING_CLIMB: { bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
+    STANDING_JOGGING: { bg: 'bg-orange-500/20', text: 'text-orange-300' },
+    JUMPS: { bg: 'bg-red-500/20', text: 'text-red-300' },
+    WAVES: { bg: 'bg-pink-500/20', text: 'text-pink-300' },
+    PUSHES: { bg: 'bg-indigo-500/20', text: 'text-indigo-300' },
+  };
+
+  return (
+    <div className={`px-2 py-0.5 rounded ${badgeStyles[type].bg} ${badgeStyles[type].text} 
+      text-xs font-medium`}
+    >
+      {WORKOUT_LABELS[type]}
+    </div>
+  );
+};
+
 export default function WorkoutPlayer({ 
   params 
 }: Readonly<{ 
@@ -780,13 +802,25 @@ export default function WorkoutPlayer({
             <h2 className="text-lg font-semibold mb-4">Current & Up Next</h2>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {tracks
-                .slice(currentTrackIndex) // Only show current and upcoming tracks
+                .slice(currentTrackIndex)
                 .map((track, index) => {
-                  const actualIndex = currentTrackIndex + index; // Calculate actual index for highlighting
+                  const actualIndex = currentTrackIndex + index;
                   const trackBPMData = JSON.parse(localStorage.getItem('savedBPMs') || '{}')[
                     `${resolvedParams.playlistId}_${track.id}`
                   ];
                   
+                  // Get segments for this track
+                  const trackSegments = JSON.parse(
+                    localStorage.getItem(
+                      getStorageKey(resolvedParams.playlistId, track.id, 'segments')
+                    ) || '[]'
+                  );
+                  
+                  // Get unique workout types for this track
+                  const trackWorkoutTypes = Array.from(
+                    new Set(trackSegments.map((s: Segment) => s.type))
+                  );
+
                   return (
                     <div
                       key={`${track.id}-${actualIndex}`}
@@ -800,8 +834,18 @@ export default function WorkoutPlayer({
                       <div className="w-8 text-gray-400">{actualIndex + 1}</div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">{track.name}</div>
-                        <div className="text-sm text-gray-400 truncate">
-                          {track.artists.map((a) => a.name).join(", ")}
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="text-sm text-gray-400 truncate">
+                            {track.artists.map((a) => a.name).join(", ")}
+                          </div>
+                          {/* Workout type badges */}
+                          {trackWorkoutTypes.length > 0 && (
+                            <div className="flex gap-1 flex-wrap">
+                              {trackWorkoutTypes.map((type: WorkoutType) => (
+                                <SmallWorkoutBadge key={type} type={type} />
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
