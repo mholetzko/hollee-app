@@ -988,34 +988,22 @@ export default function WorkoutPlayer({
             variant="ghost"
             size="sm"
             className="mb-4 hover:bg-white/10"
-            onClick={() => {
-              if (
-                typeof resolvedParams === "object" &&
-                resolvedParams !== null &&
-                "playlistId" in resolvedParams
-              ) {
-                router.push(`/workout-builder/${resolvedParams.playlistId}`);
-              } else {
-                router.push("/workout-builder/");
-              }
-            }}
+            onClick={() => router.push(`/workout-builder/${resolvedParams.playlistId}`)}
           >
             <ArrowBackIcon className="w-4 h-4 mr-2" />
             Back to Playlist
           </Button>
 
-          {playbackState.hasStarted && (
-            <div className="mt-4">
-              <GlobalWorkoutTimeline
-                tracks={tracks}
-                segments={segments}
-                playlistId={resolvedParams.playlistId}
-                currentTrackIndex={currentTrackIndex}
-                currentPosition={playbackState.position}
-                currentTrackStartTime={currentTrackStartTime}
-              />
-            </div>
-          )}
+          <div className="mt-4">
+            <GlobalWorkoutTimeline
+              tracks={tracks}
+              segments={segments}
+              playlistId={resolvedParams.playlistId}
+              currentTrackIndex={currentTrackIndex}
+              currentPosition={playbackState.position}
+              currentTrackStartTime={currentTrackStartTime}
+            />
+          </div>
         </div>
 
         {/* Track info header - make more compact */}
