@@ -24,7 +24,6 @@ import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
 import { SegmentTimeline } from "../components/SegmentTimeline";
-import { DeviceSelector } from "../components/DeviceSelector";
 
 // Add types if not already defined in types.ts
 declare global {
@@ -904,50 +903,6 @@ export default function WorkoutPlayer({
     setCurrentTrackStartTime(startTime);
   }, [currentTrackIndex, tracks]);
 
-  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
-
-  // Also update the device activation to ensure playback starts
-  const onDeviceSelected = async (deviceId: string) => {
-    console.log("[Device Selected] Starting with device:", deviceId);
-    setShowDeviceSelector(false);
-
-    try {
-      // First ensure the device is ready
-      await fetch("https://api.spotify.com/v1/me/player", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem(
-            "spotify_access_token"
-          )}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          device_ids: [deviceId],
-          play: false,
-        }),
-      });
-
-      // Small delay to ensure device is ready
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Set flag to prevent auto-skip
-      isPlayingNextTrack.current = true;
-
-      if (currentTrack) {
-        console.log("[Device Selected] Playing track:", currentTrack.id);
-        await playTrack(currentTrack.id);
-      }
-
-      // Reset flag after a delay
-      setTimeout(() => {
-        isPlayingNextTrack.current = false;
-        console.log("[Device Selected] Reset playing next flag");
-      }, 2000);
-    } catch (error) {
-      console.error("[Device Selected] Error:", error);
-      alert("Failed to start playback. Please try again.");
-    }
-  };
 
   // Update the playback state handling
   useEffect(() => {
