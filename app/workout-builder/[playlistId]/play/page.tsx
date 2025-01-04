@@ -184,9 +184,11 @@ const GlobalWorkoutTimeline = ({
                   ? 'bg-green-500'
                   : 'bg-blue-500';
 
+          const uniqueSegmentKey = `segment-${segment.trackIndex}-${segment.id}-${index}`;
+
           return (
             <div
-              key={`bar-${segment.trackIndex}-${segment.id}-${index}`}
+              key={uniqueSegmentKey}
               className={`absolute ${intensityColor} transition-opacity
                 ${isCurrentTrack ? 'opacity-80' : 'opacity-30'}`}
               style={{
@@ -963,6 +965,8 @@ export default function WorkoutPlayer({
               .slice(currentTrackIndex)
               .map((track, index) => {
                 const actualIndex = currentTrackIndex + index;
+                const uniqueTrackKey = `${track.id}-position-${actualIndex}`;
+                
                 const trackBPMData = JSON.parse(localStorage.getItem('savedBPMs') || '{}')[
                   `${resolvedParams.playlistId}_${track.id}`
                 ];
@@ -979,7 +983,7 @@ export default function WorkoutPlayer({
 
                 return (
                   <div
-                    key={`${track.id}-${actualIndex}`}
+                    key={uniqueTrackKey}
                     className={`flex flex-col p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
                       ${actualIndex === currentTrackIndex ? "bg-white/10" : ""}`}
                     onClick={() => {
@@ -1001,8 +1005,11 @@ export default function WorkoutPlayer({
                       {/* Workout type badges */}
                       {trackWorkoutTypes.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {trackWorkoutTypes.map((type: WorkoutType) => (
-                            <SmallWorkoutBadge key={type} type={type} />
+                          {trackWorkoutTypes.map((type: WorkoutType, index) => (
+                            <SmallWorkoutBadge 
+                              key={`${uniqueTrackKey}-workout-${type}-${index}`} 
+                              type={type} 
+                            />
                           ))}
                         </div>
                       )}

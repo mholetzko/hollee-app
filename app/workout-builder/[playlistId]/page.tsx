@@ -345,7 +345,10 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
           )}
 
           <div className="grid gap-4">
-            {tracks.map((track) => {
+            {tracks.map((track, index) => {
+              // Create a unique key combining track ID and position
+              const uniqueTrackKey = `${track.id}-position-${index}`;
+              
               // Get saved segments and BPM for this track
               const trackSegments = JSON.parse(
                 localStorage.getItem(getStorageKey(resolvedParams.playlistId, track.id, 'segments')) || '[]'
@@ -364,7 +367,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
               return (
                 <div
-                  key={track.id}
+                  key={uniqueTrackKey}
                   className={`group flex flex-col p-4 rounded-lg transition-colors
                     ${hasConfiguration ? 'bg-white/5' : 'bg-black/20'}
                     hover:bg-white/10`}

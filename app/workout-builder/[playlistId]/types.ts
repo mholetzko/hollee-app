@@ -42,8 +42,14 @@ export interface TrackBPM {
 }
 
 // Add a helper function to generate storage keys
-export const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm') => {
-  return `playlist_${playlistId}_${type}_${songId}`;
+export const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm', position?: number) => {
+  const baseKey = `playlist_${playlistId}_${type}_${songId}`;
+  return position !== undefined ? `${baseKey}_pos_${position}` : baseKey;
+};
+
+export const getTrackBPMKey = (playlistId: string, songId: string, position?: number) => {
+  const baseKey = `${playlistId}_${songId}`;
+  return position !== undefined ? `${baseKey}_pos_${position}` : baseKey;
 };
 
 export const WORKOUT_LABELS: Record<WorkoutType, string> = {
