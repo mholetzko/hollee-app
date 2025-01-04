@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import Image from 'next/image';
+import { Footer } from "@/components/Footer";
 
 function FQDN() {
   return process.env.NEXT_PUBLIC_VERCEL_URL
@@ -38,7 +40,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-black text-white">
       <main className="flex-1 flex flex-col items-center justify-center p-8">
         {/* Login section */}
-        <div className="text-center mb-12">
+        <div className="w-full max-w-7xl mx-auto text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Workout Builder</h1>
           <p className="text-gray-400 mb-8">Sync your ride with your favorite beats</p>
           <Button
@@ -53,70 +55,90 @@ export default function LoginPage() {
           </Button>
         </div>
 
-        {/* Overview section */}
-        <div className="max-w-5xl w-full bg-white/5 rounded-lg p-8 mb-12">
-          <h2 className="text-xl font-semibold mb-6 text-white">Create Your Perfect Ride</h2>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-            <div className="space-y-3">
+        {/* Overview section - now in single column */}
+        <div className="w-full max-w-7xl mx-auto bg-white/5 rounded-lg p-8 mb-12">
+          <h2 className="text-xl font-semibold mb-8 text-white">Create the Perfect Workout</h2>
+          <div className="space-y-12">
+            {/* Step 1 */}
+            <div className="space-y-4">
               <div className="flex items-center gap-3 text-[#1DB954]">
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">1</div>
-                <span className="font-medium">Prepare in Spotify</span>
+                <span className="font-medium">Select Your Playlist</span>
               </div>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Create a playlist in Spotify with your favorite tracks for the perfect riding experience
+                Choose from your Spotify playlists and start building your perfect workout
               </p>
+              <div className="aspect-video relative overflow-hidden rounded-lg shadow-lg border border-white/10">
+                <Image 
+                  src="/images/your-playlists.png"
+                  alt="Playlist Selection"
+                  fill
+                  className="object-contain"
+                />
+              </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Step 2 */}
+            <div className="space-y-4">
               <div className="flex items-center gap-3 text-[#1DB954]">
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">2</div>
-                <span className="font-medium">Select & Build</span>
+                <span className="font-medium">Design Your Workout</span>
               </div>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Choose your playlist below and start crafting your synchronized workout routine
+                Create a structured workout by adding segments to each track
               </p>
+              <div className="aspect-video relative overflow-hidden rounded-lg shadow-lg border border-white/10">
+                <Image 
+                  src="/images/workout-builder.png"
+                  alt="Workout Builder"
+                  fill
+                  className="object-contain"
+                />
+              </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Step 3 */}
+            <div className="space-y-4">
               <div className="flex items-center gap-3 text-[#1DB954]">
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">3</div>
-                <span className="font-medium">Design Segments</span>
+                <span className="font-medium">Add Workout Segments</span>
               </div>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Create workout segments for each track, matching intensity with the music&apos;s energy
+                Fine-tune each track with specific workout segments and intensities
               </p>
+              <div className="aspect-video relative overflow-hidden rounded-lg shadow-lg border border-white/10">
+                <Image 
+                  src="/images/segment-editor.png"
+                  alt="Segment Editor"
+                  fill
+                  className="object-contain"
+                />
+              </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Step 4 */}
+            <div className="space-y-4">
               <div className="flex items-center gap-3 text-[#1DB954]">
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">4</div>
-                <span className="font-medium">Start Riding</span>
+                <span className="font-medium">Start Your Ride</span>
               </div>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Run your enhanced playlist with perfectly timed workout segments and BPM tracking
+                Follow along with your enhanced playlist, complete with BPM tracking and segment guidance
               </p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-orange-400">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-400/10 text-orange-400">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
-                    />
-                  </svg>
-                </div>
-                <span className="font-medium">Don&apos;t Forget</span>
+              <div className="aspect-video relative overflow-hidden rounded-lg shadow-lg border border-white/10">
+                <Image 
+                  src="/images/workout-player.png"
+                  alt="Workout Player"
+                  fill
+                  className="object-contain"
+                />
               </div>
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Your workout data is stored locally - use the export feature to save and backup your configurations
-              </p>
             </div>
           </div>
         </div>
 
-        {/* Privacy section */}
-        <div className="max-w-2xl w-full bg-white/5 rounded-lg p-8">
+        {/* Privacy section - now full width */}
+        <div className="w-full max-w-7xl mx-auto bg-white/5 rounded-lg p-8">
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-3">
             <svg 
               className="w-6 h-6 text-[#1DB954]" 
@@ -173,6 +195,8 @@ export default function LoginPage() {
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }
