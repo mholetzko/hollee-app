@@ -355,9 +355,8 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
                   localStorage.getItem(getStorageKey(resolvedParams.playlistId, track.id, 'segments')) || '[]'
                 );
                 
-                const trackBPMData = JSON.parse(localStorage.getItem('savedBPMs') || '{}')[
-                  `${resolvedParams.playlistId}_${track.id}`
-                ];
+                const storedBPM = BPMStorage.load(resolvedParams.playlistId, track.id);
+                const trackBPMData = storedBPM?.bpm;
 
                 // Get unique workout types
                 const trackWorkoutTypes = Array.from(

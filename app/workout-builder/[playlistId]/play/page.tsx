@@ -24,6 +24,7 @@ import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
 import { SegmentTimeline } from "../components/SegmentTimeline";
+import { BPMStorage } from "../utils/storage";
 
 // Add types if not already defined in types.ts
 declare global {
@@ -869,13 +870,12 @@ export default function WorkoutPlayer({
     );
     const segments = segmentsStored ? JSON.parse(segmentsStored) : [];
 
-    // Load BPM using new format
-    const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") || "{}");
-    const bpm = savedBPMs[`${playlistId}_${trackId}`] || null;
+    // Load BPM using BPMStorage
+    const storedBPM = BPMStorage.load(playlistId, trackId);
 
     return {
       segments,
-      bpm: bpm ? { tempo: bpm, isManual: true } : null,
+      bpm: storedBPM ? { tempo: storedBPM.bpm, isManual: storedBPM.source === 'manual' } : null,
     };
   };
 
@@ -1200,8 +1200,7 @@ export default function WorkoutPlayer({
 
                     <div className="flex items-center gap-3 text-sm text-gray-400">
                       <div className="font-mono">
-                        {trackBPMData ? `${Math.round(trackBPMData)}` : "--"}{" "}
-                        BPM
+                        {trackBPMData ? `${Math.round(trackBPMData)}` : "--"} BPM
                       </div>
                       <div>
                         {Math.floor(track.duration_ms / 60000)}:
