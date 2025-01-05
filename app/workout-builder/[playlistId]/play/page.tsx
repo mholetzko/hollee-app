@@ -864,6 +864,8 @@ export default function WorkoutPlayer({
   const loadTrackData = (playlistId: string, trackId: string) => {
     if (typeof window === "undefined") return { segments: [], bpm: null };
 
+    console.log("[loadTrackData] Loading data for track:", trackId);
+
     // Load segments using new format
     const segmentsStored = localStorage.getItem(
       getStorageKey(playlistId, trackId, "segments")
@@ -872,23 +874,37 @@ export default function WorkoutPlayer({
 
     // Load BPM using BPMStorage
     const storedBPM = BPMStorage.load(playlistId, trackId);
+    console.log("[loadTrackData] Loaded BPM data:", storedBPM);
+
+    const bpmData = storedBPM ? { 
+      tempo: Number(storedBPM.bpm), // Ensure we're getting a number
+      isManual: storedBPM.source === 'manual' 
+    } : null;
+
+    console.log("[loadTrackData] Processed BPM data:", bpmData);
 
     return {
       segments,
-      bpm: storedBPM ? { tempo: storedBPM.bpm, isManual: storedBPM.source === 'manual' } : null,
+      bpm: bpmData,
     };
   };
 
   useEffect(() => {
     if (!currentTrack) return;
 
+    console.log("[Track Change] Loading data for track:", currentTrack.id);
     const { segments, bpm } = loadTrackData(
       resolvedParams.playlistId,
       currentTrack.id
     );
     setSegments(segments);
+    
     if (bpm) {
+      console.log("[Track Change] Setting BPM:", bpm);
       setTrackBPM(bpm);
+    } else {
+      console.log("[Track Change] No BPM found, using default");
+      setTrackBPM({ tempo: 128, isManual: false });
     }
   }, [currentTrack, resolvedParams.playlistId]);
 
@@ -1151,7 +1167,7 @@ export default function WorkoutPlayer({
               const uniqueTrackKey = `${track.id}-position-${actualIndex}`;
 
               const storedBPM = BPMStorage.load(resolvedParams.playlistId, track.id);
-              const trackBPMData = storedBPM?.bpm;
+              const trackBPMData = storedBPM?.bpm ? Number(storedBPM.bpm) : null;
 
               const trackSegments = JSON.parse(
                 localStorage.getItem(

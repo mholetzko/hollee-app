@@ -210,16 +210,6 @@ const BPMVisualization = ({
   );
 };
 
-// Add this helper function to try extracting BPM from title
-const extractBPMFromTitle = (title: string): number | null => {
-  const match = title.match(/\b(\d{2,3})\s*(?:bpm|BPM)\b/);
-  if (match) {
-    const bpm = parseInt(match[1]);
-    if (bpm >= 60 && bpm <= 200) return bpm;
-  }
-  return null;
-};
-
 // Add a helper function for normalizing BPM format
 const normalizeBPM = (
   bpm: number | { tempo: number; isManual: boolean } | null
@@ -236,116 +226,29 @@ const normalizeBPM = (
   return bpm;
 };
 
-// Update the BPM extraction to use the new storage
-const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
+// Update the BPM extraction to be simpler
+const getBPMFromSources = async (track: Track, playlistId: string): Promise<SongBPMData> => {
   console.log("[BPM Extract] Starting BPM extraction for track:", track.name);
 
-  // 1. Check localStorage first
-  const storedBPM = BPMStorage.load(
-    resolvedParams.playlistId,
-    track.id
-  );
+  // Check localStorage first
+  const storedBPM = BPMStorage.load(playlistId, track.id);
   if (storedBPM) {
     console.log("[BPM Extract] Using stored BPM:", storedBPM);
     return {
       songId: track.id,
       bpm: storedBPM.bpm,
-      source: storedBPM.source as "manual" | "title" | "database" | "youtube",
+      source: "manual"
     };
   }
 
-  // 2. Try to extract from title
-  const titleBPM = extractBPMFromTitle(track.name);
-  if (titleBPM) {
-    console.log("[BPM Extract] Found BPM in title:", titleBPM);
-    const result = {
-      songId: track.id,
-      bpm: titleBPM,
-      source: "title" as const,
-    };
-    BPMStorage.save(
-      resolvedParams.playlistId,
-      track.id,
-      titleBPM,
-      "title"
-    );
-    return result;
-  }
-
-  // 3. Try YouTube search
-  try {
-    console.log("[BPM Extract] Searching YouTube for BPM");
-    const query = `${track.name} ${track.artists[0].name} BPM`;
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?` +
-      `part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5` +
-      `&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
-    );
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log("[BPM Extract] YouTube search results:", data.items.length);
-      
-      for (const item of data.items) {
-        const title = item.snippet.title;
-        const description = item.snippet.description;
-        
-        // Check title first
-        const titleMatch = extractBPMFromTitle(title);
-        if (titleMatch) {
-          console.log("[BPM Extract] Found BPM in YouTube title:", titleMatch);
-          BPMStorage.save(
-            resolvedParams.playlistId,
-            track.id,
-            titleMatch,
-            "youtube"
-          );
-          return {
-            songId: track.id,
-            bpm: titleMatch,
-            source: "youtube",
-          };
-        }
-
-        // Then check description
-        const descriptionMatch = extractBPMFromTitle(description);
-        if (descriptionMatch) {
-          console.log(
-            "[BPM Extract] Found BPM in YouTube description:",
-            descriptionMatch
-          );
-          BPMStorage.save(
-            resolvedParams.playlistId,
-            track.id,
-            descriptionMatch,
-            "youtube"
-          );
-          return {
-            songId: track.id,
-            bpm: descriptionMatch,
-            source: "youtube",
-          };
-        }
-      }
-      console.log("[BPM Extract] No BPM found in YouTube results");
-    }
-  } catch (error) {
-    console.error("[BPM Extract] YouTube search error:", error);
-  }
-
-  // 4. If all else fails, return default
+  // If no stored BPM, use default
   console.log("[BPM Extract] Using default BPM: 128");
   const defaultBPM = 128;
-  BPMStorage.save(
-    resolvedParams.playlistId,
-    track.id,
-    defaultBPM,
-    "manual"
-  );
+  BPMStorage.save(playlistId, track.id, defaultBPM);
   return {
     songId: track.id,
     bpm: defaultBPM,
-    source: "manual",
+    source: "manual"
   };
 };
 
@@ -666,20 +569,15 @@ const loadTrackData = (playlistId: string, songId: string) => {
   return { segments, bpm };
 };
 
-// Update the saveTrackData function
+// Update the save function to handle BPM correctly
 const saveTrackData = (
-  playlistId: string, 
-  songId: string, 
-  segments: Segment[], 
+  playlistId: string,
+  songId: string,
+  segments: Segment[],
   bpm: TrackBPM
 ) => {
-  console.log("[Save Track Data] Saving:", {
-    playlistId,
-    songId,
-    segments: segments.length,
-    bpm,
-  });
-  
+  console.log("[Save Track Data] Saving:", { playlistId, songId, segments, bpm });
+
   try {
     // Save segments
     localStorage.setItem(
@@ -687,17 +585,16 @@ const saveTrackData = (
       JSON.stringify(segments)
     );
 
-    // Save BPM as a simple number for compatibility
-    const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") || "{}");
-    savedBPMs[`${playlistId}_${songId}`] = bpm.tempo; // Save just the number
-    localStorage.setItem("savedBPMs", JSON.stringify(savedBPMs));
+    // Save BPM - Extract just the tempo value for storage
+    BPMStorage.save(
+      playlistId,
+      songId,
+      bpm.tempo
+    );
 
-    console.log("[Save Track Data] Successfully saved track data and BPM:", {
-      bpm: bpm.tempo,
-      savedBPMs,
-    });
+    console.log("[Save Track Data] Successfully saved track data and BPM");
   } catch (error) {
-    console.error("[Save Track Data] Error saving track data:", error);
+    console.error("[Save Track Data] Error saving:", error);
   }
 };
 
@@ -847,6 +744,13 @@ const isIOS = () => {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
+// Update type definition
+type SongBPMData = {
+  songId: string;
+  bpm: number;
+  source: "manual"; // Simplified to only manual source
+};
+
 export default function SongSegmentEditor({ params }: { params: any }) {
   const resolvedParams = use(params);
   const [track, setTrack] = useState<Track | null>(null);
@@ -952,7 +856,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       
       // Save immediately when BPM changes
       if (track) {
-        BPMStorage.save(resolvedParams.playlistId, track.id, newValue, "manual");
+        BPMStorage.save(resolvedParams.playlistId, track.id, newValue);
       }
     };
 
@@ -1117,7 +1021,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         } else {
           // If no stored BPM, extract from sources
           console.log("[Track Load] No stored BPM, extracting from sources");
-          const bpmData = await getBPMFromSources(data);
+          const bpmData = await getBPMFromSources(data, resolvedParams.playlistId);
           wrappedSetTrackBPM({
             tempo: bpmData.bpm,
             isManual: bpmData.source === "manual",
@@ -1131,7 +1035,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     };
 
     fetchTrack();
-  }, [resolvedParams.songId, router]);
+  }, [resolvedParams.songId, router, resolvedParams.playlistId]);
 
   // Update the save effect
   useEffect(() => {
@@ -1140,8 +1044,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     console.log("[Save Effect] Saving track data:", {
       trackId: track.id,
       segments: segments.length,
-      bpm: trackBPM,
-      trigger: "segments or trackBPM change",
+      bpm: trackBPM.tempo, // Log just the tempo value
     });
     
     // Debounce the save to prevent too many writes
@@ -1390,7 +1293,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     const fetchBPM = async () => {
       if (!track) return;
 
-      const bpmData = await getBPMFromSources(track);
+      const bpmData = await getBPMFromSources(track, resolvedParams.playlistId);
       setTrackBPM({ 
         tempo: bpmData.bpm, 
         isManual: bpmData.source === "manual",
@@ -1398,7 +1301,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     };
 
     fetchBPM();
-  }, [track]);
+  }, [track, resolvedParams.playlistId]);
 
   // Add intensity color function
   const getIntensityColor = (intensity: number) => {

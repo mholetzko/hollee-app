@@ -9,6 +9,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { Footer } from '@/components/Footer'
 import { Track, Segment, WorkoutType, getStorageKey } from "./types";
 import { SmallWorkoutBadge } from "./components/SmallWorkoutBadge";
+import { BPMStorage } from './utils/storage';
 
 interface Track {
   id: string
@@ -117,8 +118,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
           BPMStorage.save(
             resolvedParams.playlistId,
             songId,
-            config.bpm.tempo,
-            config.bpm.isManual ? 'manual' : 'title'
+            config.bpm.tempo
           );
         }
       });

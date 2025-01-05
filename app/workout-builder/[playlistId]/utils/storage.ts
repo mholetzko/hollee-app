@@ -1,22 +1,25 @@
 // BPM Storage utility
 export const BPMStorage = {
   getKey: (playlistId: string, trackId: string) => `${playlistId}_${trackId}`,
-  
-  save: (playlistId: string, trackId: string, bpm: number, source: string) => {
-    console.log("[BPM Storage] Saving BPM:", { playlistId, trackId, bpm, source });
+
+  save: (playlistId: string, trackId: string, bpm: number) => {
+    console.log("[BPM Storage] Saving BPM:", { playlistId, trackId, bpm });
     try {
       const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") ?? "{}");
       savedBPMs[BPMStorage.getKey(playlistId, trackId)] = {
-        bpm,
-        source
+        bpm: Number(bpm),
+        source: "manual",
       };
       localStorage.setItem("savedBPMs", JSON.stringify(savedBPMs));
-      console.log("[BPM Storage] Successfully saved BPM data");
+      console.log(
+        "[BPM Storage] Successfully saved BPM:",
+        savedBPMs[BPMStorage.getKey(playlistId, trackId)]
+      );
     } catch (error) {
       console.error("[BPM Storage] Error saving BPM:", error);
     }
   },
-  
+
   load: (playlistId: string, trackId: string) => {
     console.log("[BPM Storage] Loading BPM for track:", trackId);
     try {
@@ -24,7 +27,10 @@ export const BPMStorage = {
       const data = savedBPMs[BPMStorage.getKey(playlistId, trackId)];
       if (data) {
         console.log("[BPM Storage] Found stored BPM:", data);
-        return data;
+        return {
+          bpm: Number(data.bpm),
+          source: "manual",
+        };
       }
       console.log("[BPM Storage] No stored BPM found");
       return null;
@@ -39,18 +45,18 @@ export const BPMStorage = {
     try {
       const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") ?? "{}");
       const playlistBPMs: Record<string, { bpm: number; source: string }> = {};
-      
+
       Object.entries(savedBPMs).forEach(([key, value]) => {
         if (key.startsWith(playlistId)) {
-          const trackId = key.replace(`${playlistId}_`, '');
+          const trackId = key.replace(`${playlistId}_`, "");
           playlistBPMs[trackId] = value as { bpm: number; source: string };
         }
       });
-      
+
       return playlistBPMs;
     } catch (error) {
       console.error("[BPM Storage] Error loading all BPMs:", error);
       return {};
     }
-  }
-}; 
+  },
+};
