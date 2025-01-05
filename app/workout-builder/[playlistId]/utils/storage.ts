@@ -5,7 +5,7 @@ export const BPMStorage = {
   save: (playlistId: string, trackId: string, bpm: number, source: string) => {
     console.log("[BPM Storage] Saving BPM:", { playlistId, trackId, bpm, source });
     try {
-      const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") || "{}");
+      const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") ?? "{}");
       savedBPMs[BPMStorage.getKey(playlistId, trackId)] = bpm;
       localStorage.setItem("savedBPMs", JSON.stringify(savedBPMs));
       console.log("[BPM Storage] Successfully saved BPM data");
@@ -17,7 +17,7 @@ export const BPMStorage = {
   load: (playlistId: string, trackId: string) => {
     console.log("[BPM Storage] Loading BPM for track:", trackId);
     try {
-      const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") || "{}");
+      const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") ?? "{}");
       const bpm = savedBPMs[BPMStorage.getKey(playlistId, trackId)];
       if (bpm) {
         console.log("[BPM Storage] Found stored BPM:", bpm);

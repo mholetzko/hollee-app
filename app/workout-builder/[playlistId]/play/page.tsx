@@ -1150,9 +1150,8 @@ export default function WorkoutPlayer({
               const actualIndex = currentTrackIndex + index;
               const uniqueTrackKey = `${track.id}-position-${actualIndex}`;
 
-              const trackBPMData = JSON.parse(
-                localStorage.getItem("savedBPMs") || "{}"
-              )[`${resolvedParams.playlistId}_${track.id}`];
+              const storedBPM = BPMStorage.load(resolvedParams.playlistId, track.id);
+              const trackBPMData = storedBPM?.bpm;
 
               const trackSegments = JSON.parse(
                 localStorage.getItem(

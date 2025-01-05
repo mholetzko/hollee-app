@@ -241,16 +241,16 @@ const getBPMFromSources = async (track: Track): Promise<SongBPMData> => {
   console.log("[BPM Extract] Starting BPM extraction for track:", track.name);
 
   // 1. Check localStorage first
-  const stored = BPMStorage.load(
+  const storedBPM = BPMStorage.load(
     resolvedParams.playlistId,
     track.id
   );
-  if (stored) {
-    console.log("[BPM Extract] Using stored BPM:", stored);
+  if (storedBPM) {
+    console.log("[BPM Extract] Using stored BPM:", storedBPM);
     return {
       songId: track.id,
-      bpm: stored.bpm,
-      source: stored.source as "manual" | "title" | "database" | "youtube",
+      bpm: storedBPM.bpm,
+      source: storedBPM.source as "manual" | "title" | "database" | "youtube",
     };
   }
 

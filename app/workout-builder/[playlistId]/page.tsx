@@ -69,18 +69,15 @@ const getAllWorkoutConfigs = (playlistId: string, tracks: Track[]) => {
     }
   }
 
-  // Add saved BPMs
-  const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
-  Object.entries(savedBPMs).forEach(([key, bpm]) => {
-    if (key.startsWith(`${playlistId}_`)) {
-      const songId = key.replace(`${playlistId}_`, '');
-      const configKey = `${playlistId}_${songId}`;
-      if (configs[configKey]) {
-        configs[configKey].bpm = {
-          tempo: Number(bpm),
-          isManual: true
-        };
-      }
+  // Add saved BPMs using BPMStorage
+  tracks.forEach(track => {
+    const storedBPM = BPMStorage.load(playlistId, track.id);
+    const configKey = `${playlistId}_${track.id}`;
+    if (configs[configKey] && storedBPM) {
+      configs[configKey].bpm = {
+        tempo: storedBPM.bpm,
+        isManual: storedBPM.source === 'manual'
+      };
     }
   });
 
@@ -117,9 +114,12 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
         }
         
         if (config.bpm && typeof config.bpm.tempo === 'number') {
-          const savedBPMs = JSON.parse(localStorage.getItem('savedBPMs') || '{}');
-          savedBPMs[`${resolvedParams.playlistId}_${songId}`] = config.bpm.tempo;
-          localStorage.setItem('savedBPMs', JSON.stringify(savedBPMs));
+          BPMStorage.save(
+            resolvedParams.playlistId,
+            songId,
+            config.bpm.tempo,
+            config.bpm.isManual ? 'manual' : 'title'
+          );
         }
       });
 
