@@ -6,7 +6,7 @@ export function Footer() {
           Built with ❤️ for the cycling community
         </p>
         <a
-          href="https://www.buymeacoffee.com/mateverest"
+          href="https://www.buymeacoffee.com/mholetsgo"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-5 py-2 bg-[#FFDD00] text-[#000000] rounded-full hover:bg-[#FFDD00]/90 transition-all duration-300 hover:scale-105 font-medium"

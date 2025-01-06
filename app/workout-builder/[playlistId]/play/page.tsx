@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -326,8 +326,11 @@ const cleanupPlayer = async (
 
 export default function WorkoutPlayer({
   params,
-}: any) {
-  const playlistId = params.playlistId;
+}: {
+  params: { playlistId: string }
+}) {
+  const resolvedParams = use(params);  // Unwrap the params Promise
+  const playlistId = resolvedParams.playlistId;  // Use the resolved params
 
   // All state declarations first
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -926,7 +929,7 @@ export default function WorkoutPlayer({
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Main content area */}
       <div className="flex-1 flex flex-col h-full">
-        <div className="flex-none bg-black/20 backdrop-blur-sm px-12 py-6 border-b border-white/10">
+        <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
           <Button
             variant="ghost"
             size="sm"
@@ -952,7 +955,7 @@ export default function WorkoutPlayer({
         {/* Track info and controls */}
         <div className="flex-1 flex flex-col">
           {/* Current track info */}
-          <div className="flex-none bg-black/20 backdrop-blur-sm px-12 py-6 border-b border-white/10">
+          <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
             <div className="flex items-center gap-8">
               {/* Album art and track info */}
               <div className="flex items-center gap-6 flex-1">
@@ -992,29 +995,27 @@ export default function WorkoutPlayer({
           </div>
 
           {/* Workout display */}
-          <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
-            <div className="py-4 px-12">
-              <div className="flex gap-4">
-                {(() => {
-                  const { currentSegment, nextSegment } =
-                    getCurrentAndNextSegment(playbackState.position, segments);
+          <div className="flex-1 p-8">
+            <div className="flex gap-8">
+              {(() => {
+                const { currentSegment, nextSegment } =
+                  getCurrentAndNextSegment(playbackState.position, segments);
 
-                  return (
-                    <>
-                      <WorkoutDisplay segment={currentSegment} />
-                      <BeatCountdown
-                        currentPosition={playbackState.position}
-                        nextSegmentStart={
-                          nextSegment?.startTime ?? currentTrack.duration_ms
-                        }
-                        bpm={trackBPM.tempo}
-                        nextSegment={nextSegment}
-                      />
-                      <WorkoutDisplay segment={nextSegment} isNext />
-                    </>
-                  );
-                })()}
-              </div>
+                return (
+                  <>
+                    <WorkoutDisplay segment={currentSegment} />
+                    <BeatCountdown
+                      currentPosition={playbackState.position}
+                      nextSegmentStart={
+                        nextSegment?.startTime ?? currentTrack.duration_ms
+                      }
+                      bpm={trackBPM.tempo}
+                      nextSegment={nextSegment}
+                    />
+                    <WorkoutDisplay segment={nextSegment} isNext />
+                  </>
+                );
+              })()}
             </div>
           </div>
 

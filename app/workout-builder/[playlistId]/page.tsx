@@ -126,204 +126,208 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white">
-      <div className="flex-1">
-        <div className="flex-none bg-black/20 p-4">
-          <div className="container mx-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/dashboard')}
-              className="hover:bg-white/10"
-            >
-              <ArrowBackIcon className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
+    <div className="min-h-screen bg-black text-white">
+      <div className="p-8">
+        <div className="flex-1">
+          <div className="flex-none bg-black/20 p-4">
+            <div className="w-full">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/dashboard')}
+                className="hover:bg-white/10"
+              >
+                <ArrowBackIcon className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <div className="min-h-screen">
-          <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-bold">Workout Builder</h1>
-                {tracks.some(track => hasSavedSegments(resolvedParams.playlistId, track.id)) && (
-                  <Button
-                    variant="default"
-                    size="lg"
-                    className="bg-green-500 hover:bg-green-600"
-                    onClick={() => router.push(`/workout-builder/${resolvedParams.playlistId}/play`)}
-                  >
-                    <svg 
-                      className="w-5 h-5 mr-2" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" 
-                      />
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
-                      />
-                    </svg>
-                    Start Workout
-                  </Button>
-                )}
-              </div>
+          <div className="min-h-screen">
+            <div className="w-full">
+              <div className="px-4 py-8">
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-bold">Workout Builder</h1>
+                    {tracks.some(track => hasSavedSegments(resolvedParams.playlistId, track.id)) && (
+                      <Button
+                        variant="default"
+                        size="lg"
+                        className="bg-green-500 hover:bg-green-600"
+                        onClick={() => router.push(`/workout-builder/${resolvedParams.playlistId}/play`)}
+                      >
+                        <svg 
+                          className="w-5 h-5 mr-2" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" 
+                          />
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                          />
+                        </svg>
+                        Start Workout
+                      </Button>
+                    )}
+                  </div>
 
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept="application/json"
-                    onChange={handleImport}
-                    className="hidden"
-                    id="import-config"
-                  />
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={() => document.getElementById('import-config')?.click()}
-                  >
-                    <svg 
-                      className="w-4 h-4" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L12 4m4 4v12" 
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="application/json"
+                        onChange={handleImport}
+                        className="hidden"
+                        id="import-config"
                       />
-                    </svg>
-                    Import Configs
-                  </Button>
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        onClick={() => document.getElementById('import-config')?.click()}
+                      >
+                        <svg 
+                          className="w-4 h-4" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            strokeWidth={2} 
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L12 4m4 4v12" 
+                          />
+                        </svg>
+                        Import Configs
+                      </Button>
+                    </div>
+
+                    <Button
+                      onClick={handleExport}
+                      className="flex items-center gap-2"
+                      variant="outline"
+                    >
+                      <svg 
+                        className="w-4 h-4" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" 
+                        />
+                      </svg>
+                      Export Configs
+                    </Button>
+                  </div>
                 </div>
 
-                <Button
-                  onClick={handleExport}
-                  className="flex items-center gap-2"
-                  variant="outline"
-                >
-                  <svg 
-                    className="w-4 h-4" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" 
-                    />
-                  </svg>
-                  Export Configs
-                </Button>
-              </div>
-            </div>
-
-            {importMessage && (
-              <div className={`mb-4 p-4 rounded-lg ${
-                importMessage.type === 'success' 
-                  ? 'bg-green-500/20 text-green-300' 
-                  : 'bg-red-500/20 text-red-300'
-              }`}>
-                {importMessage.text}
-              </div>
-            )}
-
-            <div className="grid gap-4">
-              {tracks.map((track, index) => {
-                const uniqueTrackKey = `${track.id}-position-${index}`;
-                
-                // Get saved segments and BPM for this track using TrackStorage
-                const trackData = TrackStorage.loadTrackData(resolvedParams.playlistId, track.id);
-                console.log(`[Track ${track.id}] Loaded data:`, trackData);
-                const trackBPMData = trackData.bpm?.tempo;
-                const trackSegments = trackData.segments;
-
-                // Get unique workout types
-                const trackWorkoutTypes = Array.from(
-                  new Set(trackSegments.map((s: Segment) => s.type))
-                );
-
-                const hasConfiguration = trackWorkoutTypes.length > 0 || trackBPMData;
-
-                return (
-                  <div
-                    key={uniqueTrackKey}
-                    className={`group flex flex-col p-4 rounded-lg transition-colors
-                      ${hasConfiguration ? 'bg-white/5' : 'bg-black/20'}
-                      hover:bg-white/10`}
-                  >
-                    {/* Track basic info */}
-                    <div className="flex items-center gap-4">
-                      <div className="flex-shrink-0">
-                        {track.album?.images?.[0] && (
-                          <Image
-                            src={track.album.images[0].url}
-                            alt={track.name}
-                            width={48}
-                            height={48}
-                            className="rounded"
-                          />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{track.name}</div>
-                        <div className="text-sm text-gray-400 truncate">
-                          {track.artists.map((a) => a.name).join(", ")}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        {/* Combined workout types and BPM */}
-                        <div className="flex gap-2">
-                          {trackWorkoutTypes.map((type) => (
-                            <SmallWorkoutBadge key={type} type={type} />
-                          ))}
-                          {trackBPMData && (
-                            <div className="px-2 py-1 bg-white/10 rounded text-sm">
-                              {Math.round(trackBPMData)} BPM
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="text-sm text-gray-400">
-                          {Math.floor(track.duration_ms / 60000)}:
-                          {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            router.push(`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`);
-                          }}
-                        >
-                          {hasConfiguration ? "Edit" : "Configure"}
-                        </Button>
-                      </div>
-                    </div>
+                {importMessage && (
+                  <div className={`mb-4 p-4 rounded-lg ${
+                    importMessage.type === 'success' 
+                      ? 'bg-green-500/20 text-green-300' 
+                      : 'bg-red-500/20 text-red-300'
+                  }`}>
+                    {importMessage.text}
                   </div>
-                );
-              })}
+                )}
+
+                <div className="grid gap-4">
+                  {tracks.map((track, index) => {
+                    const uniqueTrackKey = `${track.id}-position-${index}`;
+                    
+                    // Get saved segments and BPM for this track using TrackStorage
+                    const trackData = TrackStorage.loadTrackData(resolvedParams.playlistId, track.id);
+                    console.log(`[Track ${track.id}] Loaded data:`, trackData);
+                    const trackBPMData = trackData.bpm?.tempo;
+                    const trackSegments = trackData.segments;
+
+                    // Get unique workout types
+                    const trackWorkoutTypes = Array.from(
+                      new Set(trackSegments.map((s: Segment) => s.type))
+                    );
+
+                    const hasConfiguration = trackWorkoutTypes.length > 0 || trackBPMData;
+
+                    return (
+                      <div
+                        key={uniqueTrackKey}
+                        className={`group flex flex-col p-4 rounded-lg transition-colors
+                          ${hasConfiguration ? 'bg-white/5' : 'bg-black/20'}
+                          hover:bg-white/10`}
+                      >
+                        {/* Track basic info */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            {track.album?.images?.[0] && (
+                              <Image
+                                src={track.album.images[0].url}
+                                alt={track.name}
+                                width={48}
+                                height={48}
+                                className="rounded"
+                              />
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{track.name}</div>
+                            <div className="text-sm text-gray-400 truncate">
+                              {track.artists.map((a) => a.name).join(", ")}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            {/* Combined workout types and BPM */}
+                            <div className="flex gap-2">
+                              {trackWorkoutTypes.map((type) => (
+                                <SmallWorkoutBadge key={type} type={type} />
+                              ))}
+                              {trackBPMData && (
+                                <div className="px-2 py-1 bg-white/10 rounded text-sm">
+                                  {Math.round(trackBPMData)} BPM
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="text-sm text-gray-400">
+                              {Math.floor(track.duration_ms / 60000)}:
+                              {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                router.push(`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`);
+                              }}
+                            >
+                              {hasConfiguration ? "Edit" : "Configure"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
+        <Footer />
       </div>
-      <Footer />
     </div>
   )
 } 
