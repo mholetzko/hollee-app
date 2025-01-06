@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { DeviceStorage } from '../../../utils/storage/DeviceStorage';
+import { SpotifyAuthStorage } from '../../../utils/storage/SpotifyAuthStorage';
 
 interface SpotifyDevice {
   id: string;
@@ -22,7 +24,7 @@ export const DeviceSelector = ({ onDeviceSelected, mobileOnly = false }: {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('spotify_access_token');
+      const token = SpotifyAuthStorage.load();
       const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -36,25 +38,27 @@ export const DeviceSelector = ({ onDeviceSelected, mobileOnly = false }: {
       const data = await response.json();
       setDevices(data.devices);
       
-      // If no devices found, show helpful message
       if (data.devices.length === 0) {
         setError('No active Spotify devices found. Please open Spotify on any device and play/pause a track to make it visible.');
       }
+      
+      return data.devices;
     } catch (error) {
       console.error('Error fetching devices:', error);
       setError('Failed to load devices. Please try again.');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   const activateDevice = async (deviceId: string) => {
-    const token = localStorage.getItem('spotify_access_token');
+    const token = SpotifyAuthStorage.load();
     try {
-      // Store the selected device ID for mobile use
-      localStorage.setItem('spotify_active_device', deviceId);
+      // Store the selected device ID
+      DeviceStorage.save([{ id: deviceId, is_active: true, name: '', type: '' }]);
       
-      // Transfer playback to the selected device
+      // Transfer playback
       await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
@@ -63,11 +67,10 @@ export const DeviceSelector = ({ onDeviceSelected, mobileOnly = false }: {
         },
         body: JSON.stringify({
           device_ids: [deviceId],
-          play: false, // Don't auto-play
+          play: false,
         }),
       });
 
-      // Notify parent component
       onDeviceSelected?.(deviceId);
     } catch (error) {
       console.error('Error activating device:', error);
@@ -84,7 +87,22 @@ export const DeviceSelector = ({ onDeviceSelected, mobileOnly = false }: {
 
   // Fetch devices when component mounts
   useEffect(() => {
-    fetchDevices();
+    const loadDevices = async () => {
+      // Load cached devices first
+      const cachedDevices = DeviceStorage.load();
+      if (cachedDevices.length > 0) {
+        setDevices(cachedDevices);
+      }
+
+      // Then fetch fresh devices
+      const freshDevices = await fetchDevices();
+      if (freshDevices.length > 0) {
+        setDevices(freshDevices);
+        DeviceStorage.save(freshDevices);
+      }
+    };
+
+    loadDevices();
   }, []);
 
   return (

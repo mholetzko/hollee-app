@@ -7,9 +7,14 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { Footer } from '@/components/Footer'
-import { Track, Segment, WorkoutType, getStorageKey } from "./types";
+import { Segment } from "./types";
 import { SmallWorkoutBadge } from "./components/SmallWorkoutBadge";
-import { BPMStorage } from './utils/storage';
+import { TrackStorage } from '../../utils/storage/TrackStorage'
+import { TracklistStorage } from '../../utils/storage/TracklistStorage'
+import { WorkoutConfigStorage } from '../../utils/storage/WorkoutConfigStorage'
+import { PlaylistStorage } from '../../utils/storage/PlaylistStorage'
+import { SpotifyAuthStorage } from '../../utils/storage/SpotifyAuthStorage'
+import Image from 'next/image'
 
 interface Track {
   id: string
@@ -20,69 +25,7 @@ interface Track {
 }
 
 const hasSavedSegments = (playlistId: string, songId: string): boolean => {
-  if (typeof window === 'undefined') return false;
-  const stored = localStorage.getItem(getStorageKey(playlistId, songId, 'segments'));
-  return stored ? JSON.parse(stored).length > 0 : false;
-};
-
-const getAllWorkoutConfigs = (playlistId: string, tracks: Track[]) => {
-  if (typeof window === 'undefined') return {};
-  
-  const configs: Record<string, {
-    track: {
-      id: string
-      name: string
-      artists: string[]
-      duration_ms: number
-    }
-    bpm: {
-      tempo: number
-      isManual: boolean
-    } | null
-    segments: any[]
-  }> = {};
-
-  // First add all tracks
-  tracks.forEach(track => {
-    const key = `${playlistId}_${track.id}`;
-    configs[key] = {
-      track: {
-        id: track.id,
-        name: track.name,
-        artists: track.artists.map(a => a.name),
-        duration_ms: track.duration_ms
-      },
-      bpm: null,
-      segments: []
-    };
-  });
-
-  // Then add saved segments
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith(`playlist_${playlistId}_segments_`)) {
-      const songId = key.replace(`playlist_${playlistId}_segments_`, '');
-      const segments = JSON.parse(localStorage.getItem(key) || '[]');
-      const configKey = `${playlistId}_${songId}`;
-      if (configs[configKey]) {
-        configs[configKey].segments = segments;
-      }
-    }
-  }
-
-  // Add saved BPMs using BPMStorage
-  tracks.forEach(track => {
-    const storedBPM = BPMStorage.load(playlistId, track.id);
-    const configKey = `${playlistId}_${track.id}`;
-    if (configs[configKey] && storedBPM) {
-      configs[configKey].bpm = {
-        tempo: storedBPM.bpm,
-        isManual: storedBPM.source === 'manual'
-      };
-    }
-  });
-
-  return configs;
+  return TrackStorage.segments.hasData(playlistId, songId);
 };
 
 export default function WorkoutBuilder({ params }: { params: Promise<{ playlistId: string }> }) {
@@ -95,51 +38,10 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
     text: string
   } | null>(null)
 
-  const importConfigs = async (file: File) => {
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      if (!data.tracks || typeof data.tracks !== 'object') {
-        throw new Error('Invalid configuration file format');
-      }
-
-      Object.entries(data.tracks).forEach(([key, config]: [string, any]) => {
-        const songId = key.includes('_') ? key.split('_')[1] : key;
-        
-        if (config.segments && Array.isArray(config.segments)) {
-          localStorage.setItem(
-            getStorageKey(resolvedParams.playlistId, songId, 'segments'),
-            JSON.stringify(config.segments)
-          );
-        }
-        
-        if (config.bpm && typeof config.bpm.tempo === 'number') {
-          BPMStorage.save(
-            resolvedParams.playlistId,
-            songId,
-            config.bpm.tempo
-          );
-        }
-      });
-
-      return {
-        success: true,
-        message: 'Configurations imported successfully'
-      };
-    } catch (error) {
-      console.error('Import error:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to import configurations'
-      };
-    }
-  };
-
   useEffect(() => {
     const fetchPlaylistTracks = async () => {
       try {
-        const accessToken = localStorage.getItem('spotify_access_token')
+        const accessToken = SpotifyAuthStorage.load();
         if (!accessToken) {
           router.push('/')
           return
@@ -165,14 +67,8 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
         
         setTracks(trackList)
 
-        // Store total tracks count in localStorage
-        const storageKey = `playlist_${resolvedParams.playlistId}_total_tracks`;
-        console.log('Storing total tracks:', {
-          key: storageKey,
-          count: trackList.length
-        });
-        
-        localStorage.setItem(storageKey, trackList.length.toString());
+        // Store the total tracks count
+        PlaylistStorage.storeTotalTracksCount(resolvedParams.playlistId, trackList.length);
 
       } catch (error) {
         console.error('Error fetching tracks:', error)
@@ -185,44 +81,45 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
   }, [resolvedParams.playlistId, router])
 
   const handleExport = () => {
-    const configs = getAllWorkoutConfigs(resolvedParams.playlistId, tracks);
-    const fileName = 'workout-configs.json';
-    const json = JSON.stringify({
-      exportDate: new Date().toISOString(),
-      playlistId: resolvedParams.playlistId,
-      tracks: configs
-    }, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const href = URL.createObjectURL(blob);
+    const config = WorkoutConfigStorage.exportConfig(resolvedParams.playlistId, tracks);
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     
-    const link = document.createElement('a');
-    link.href = href;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workout-configs-${resolvedParams.playlistId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const result = await importConfigs(file)
-    
-    setImportMessage({
-      type: result.success ? 'success' : 'error',
-      text: result.message
-    })
-
-    // Clear message after 3 seconds
-    setTimeout(() => setImportMessage(null), 3000)
-
-    // Refresh the page to show updated configurations
-    if (result.success) {
-      window.location.reload()
+    try {
+      // Now you have type safety when working with the config data
+      const result = await WorkoutConfigStorage.importConfig(resolvedParams.playlistId, file);
+      
+      setImportMessage({
+        type: result.success ? 'success' : 'error',
+        text: result.message
+      });
+    } catch (error) {
+      console.error('Error importing config:', error);
+      setImportMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Failed to import configuration'
+      });
     }
-  }
+  };
+
+  useEffect(() => {
+    if (tracks.length > 0) {
+      TracklistStorage.save(resolvedParams.playlistId, tracks.length);
+    }
+  }, [tracks.length, resolvedParams.playlistId]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -347,16 +244,13 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
             <div className="grid gap-4">
               {tracks.map((track, index) => {
-                // Create a unique key combining track ID and position
                 const uniqueTrackKey = `${track.id}-position-${index}`;
                 
-                // Get saved segments and BPM for this track
-                const trackSegments = JSON.parse(
-                  localStorage.getItem(getStorageKey(resolvedParams.playlistId, track.id, 'segments')) || '[]'
-                );
-                
-                const storedBPM = BPMStorage.load(resolvedParams.playlistId, track.id);
-                const trackBPMData = storedBPM?.bpm;
+                // Get saved segments and BPM for this track using TrackStorage
+                const trackData = TrackStorage.loadTrackData(resolvedParams.playlistId, track.id);
+                console.log(`[Track ${track.id}] Loaded data:`, trackData);
+                const trackBPMData = trackData.bpm?.tempo;
+                const trackSegments = trackData.segments;
 
                 // Get unique workout types
                 const trackWorkoutTypes = Array.from(
@@ -376,10 +270,12 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
                     <div className="flex items-center gap-4">
                       <div className="flex-shrink-0">
                         {track.album?.images?.[0] && (
-                          <img
+                          <Image
                             src={track.album.images[0].url}
                             alt={track.name}
-                            className="w-12 h-12 rounded"
+                            width={48}
+                            height={48}
+                            className="rounded"
                           />
                         )}
                       </div>
@@ -393,22 +289,13 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
                       <div className="flex items-center gap-4">
                         {/* Combined workout types and BPM */}
-                        <div className="flex items-center gap-2">
-                          {/* Workout type badges first */}
-                          {trackWorkoutTypes.length > 0 && (
-                            <div className="flex gap-1">
-                              {trackWorkoutTypes.map((type: WorkoutType) => (
-                                <SmallWorkoutBadge key={type} type={type} />
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Show BPM after workout types */}
+                        <div className="flex gap-2">
+                          {trackWorkoutTypes.map((type) => (
+                            <SmallWorkoutBadge key={type} type={type} />
+                          ))}
                           {trackBPMData && (
-                            <div className="px-3 py-1.5 bg-white/5 rounded-md">
-                              <span className="font-mono text-sm text-gray-300">
-                                {Math.round(trackBPMData)} BPM
-                              </span>
+                            <div className="px-2 py-1 bg-white/10 rounded text-sm">
+                              {Math.round(trackBPMData)} BPM
                             </div>
                           )}
                         </div>

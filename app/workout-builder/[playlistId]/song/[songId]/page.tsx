@@ -4,15 +4,16 @@
 
 import { useEffect, useState, useRef, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   PlayIcon,
   PauseIcon,
   StopIcon,
   ArrowLeftIcon,
 } from "@radix-ui/react-icons";
-import { getStorageKey } from "../../types";
-import { BPMStorage } from '../../utils/storage';
+import { TrackStorage } from '../../../../utils/storage/TrackStorage';
+import { SpotifyAuthStorage } from '../../../../utils/storage/SpotifyAuthStorage';
+import Image from 'next/image';
 
 // Add type for Spotify Player
 declare global {
@@ -210,41 +211,22 @@ const BPMVisualization = ({
   );
 };
 
-// Add a helper function for normalizing BPM format
-const normalizeBPM = (
-  bpm: number | { tempo: number; isManual: boolean } | null
-) => {
-  if (!bpm) return null;
-  
-  if (typeof bpm === "number") {
-    return {
-      tempo: bpm,
-      isManual: true,
-    };
-  }
-  
-  return bpm;
-};
-
 // Update the BPM extraction to be simpler
 const getBPMFromSources = async (track: Track, playlistId: string): Promise<SongBPMData> => {
   console.log("[BPM Extract] Starting BPM extraction for track:", track.name);
 
-  // Check localStorage first
-  const storedBPM = BPMStorage.load(playlistId, track.id);
-  if (storedBPM) {
-    console.log("[BPM Extract] Using stored BPM:", storedBPM);
+  const trackData = TrackStorage.loadTrackData(playlistId, track.id);
+  if (trackData.bpm) {
     return {
       songId: track.id,
-      bpm: storedBPM.bpm,
+      bpm: trackData.bpm.tempo,
       source: "manual"
     };
   }
 
   // If no stored BPM, use default
-  console.log("[BPM Extract] Using default BPM: 128");
   const defaultBPM = 128;
-  BPMStorage.save(playlistId, track.id, defaultBPM);
+  TrackStorage.bpm.save(playlistId, track.id, defaultBPM);
   return {
     songId: track.id,
     bpm: defaultBPM,
@@ -287,7 +269,7 @@ const BeatCountdown = ({
   const { play } = useMetronomeSound();
   const [smoothPosition, setSmoothPosition] = useState(currentPosition);
   const lastUpdateTime = useRef(Date.now());
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
   
   // Smooth position update using requestAnimationFrame
   useEffect(() => {
@@ -437,7 +419,7 @@ const TransportControls = ({
     }
   };
 
-  const handleDrag = (e: React.MouseEvent) => {
+  const handleDrag = useCallback((e: MouseEvent) => {
     if (!isDragging || !progressRef.current) return;
     const rect = progressRef.current.getBoundingClientRect();
     const percent = Math.max(
@@ -445,25 +427,25 @@ const TransportControls = ({
       Math.min(1, (e.clientX - rect.left) / rect.width)
     );
     setDragPosition(percent * duration);
-  };
+  }, [isDragging, duration, progressRef]);
 
-  const handleEndDrag = () => {
+  const handleEndDrag = useCallback(() => {
     if (isDragging) {
       onSeek(dragPosition);
       setIsDragging(false);
     }
-  };
+  }, [isDragging, dragPosition, onSeek]);
 
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener("mousemove", handleDrag as any);
+      window.addEventListener("mousemove", handleDrag);
       window.addEventListener("mouseup", handleEndDrag);
       return () => {
-        window.removeEventListener("mousemove", handleDrag as any);
+        window.removeEventListener("mousemove", handleDrag);
         window.removeEventListener("mouseup", handleEndDrag);
       };
-      }
-  }, [isDragging]);
+    }
+  }, [isDragging, handleDrag, handleEndDrag]);
 
   // Update dragPosition when not dragging
   useEffect(() => {
@@ -547,29 +529,10 @@ const findAdjacentSegments = (segments: Segment[], currentId: string) => {
 
 // Add new storage functions
 const loadTrackData = (playlistId: string, songId: string) => {
-  if (typeof window === "undefined") return { segments: [], bpm: null };
-
-  // Load segments
-  const segmentsStored = localStorage.getItem(
-    getStorageKey(playlistId, songId, "segments")
-  );
-  const segments = segmentsStored ? JSON.parse(segmentsStored) : [];
-
-  // Load BPM
-  const savedBPMs = JSON.parse(localStorage.getItem("savedBPMs") || "{}");
-  const bpmValue = savedBPMs[`${playlistId}_${songId}`];
-  const bpm = normalizeBPM(bpmValue);
-
-  console.log("[Load Track Data] Loaded data:", {
-    segments: segments.length,
-    originalBPM: bpmValue,
-    normalizedBPM: bpm,
-  });
-
-  return { segments, bpm };
+  return TrackStorage.loadTrackData(playlistId, songId);
 };
 
-// Update the save function to handle BPM correctly
+// Update the save function to use individual save methods
 const saveTrackData = (
   playlistId: string,
   songId: string,
@@ -577,25 +540,10 @@ const saveTrackData = (
   bpm: TrackBPM
 ) => {
   console.log("[Save Track Data] Saving:", { playlistId, songId, segments, bpm });
-
-  try {
-    // Save segments
-    localStorage.setItem(
-      getStorageKey(playlistId, songId, "segments"),
-      JSON.stringify(segments)
-    );
-
-    // Save BPM - Extract just the tempo value for storage
-    BPMStorage.save(
-      playlistId,
-      songId,
-      bpm.tempo
-    );
-
-    console.log("[Save Track Data] Successfully saved track data and BPM");
-  } catch (error) {
-    console.error("[Save Track Data] Error saving:", error);
-  }
+  
+  // Save segments and BPM separately
+  TrackStorage.segments.save(playlistId, songId, segments);
+  TrackStorage.bpm.save(playlistId, songId, bpm.tempo);
 };
 
 // Update the LoadingState component
@@ -751,23 +699,72 @@ type SongBPMData = {
   source: "manual"; // Simplified to only manual source
 };
 
+// Add the cleanupPlayer function
+const cleanupPlayer = async (player: any, deviceId: string) => {
+  if (!player) return;
+
+  try {
+    console.log("[cleanupPlayer] Starting cleanup sequence");
+
+    // 1. First pause playback using both methods
+    const token = SpotifyAuthStorage.load();
+    if (token) {
+      await Promise.all([
+        // Pause via API
+        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(console.error),
+        // Pause via SDK
+        player.pause().catch(console.error)
+      ]);
+    }
+
+    // 2. Clear all intervals immediately
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
+
+    // 3. Remove all event listeners
+    player.removeListener('ready');
+    player.removeListener('not_ready');
+    player.removeListener('player_state_changed');
+    player.removeListener('initialization_error');
+    player.removeListener('authentication_error');
+    player.removeListener('account_error');
+    player.removeListener('playback_error');
+
+    // 4. Disconnect the player
+    await player.disconnect();
+
+    // 5. Reset all states
+    setPlaybackState({
+      isPlaying: false,
+      position: 0,
+      duration: 0,
+      hasStarted: false,
+      track_window: { current_track: { id: "" } },
+    });
+    
+    setPlayer(null);
+    setDeviceId("");
+    setIsPlayerReady(false);
+
+    console.log("[cleanupPlayer] Cleanup sequence completed");
+  } catch (error) {
+    console.error("[cleanupPlayer] Error during cleanup:", error);
+    throw error;
+  }
+};
+
+
 export default function SongSegmentEditor({ params }: { params: any }) {
   const resolvedParams = use(params);
   const [track, setTrack] = useState<Track | null>(null);
-
-  // Move segments initialization to useEffect
   const [segments, setSegments] = useState<Segment[]>([]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const { segments } = loadTrackData(
-        resolvedParams.playlistId,
-        resolvedParams.songId
-      );
-      setSegments(segments);
-    }
-  }, [resolvedParams.playlistId, resolvedParams.songId]);
-
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [player, setPlayer] = useState<any>(null);
@@ -778,61 +775,75 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   });
   const [deviceId, setDeviceId] = useState<string>("");
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [dragState, setDragState] = useState<DragState>({
     segmentId: null,
     type: null,
     initialX: 0,
     initialTime: 0,
   });
+
+  // Refs
   const timelineRef = useRef<HTMLDivElement>(null);
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Add state for tracking progress
-  const progressInterval = useRef<NodeJS.Timeout>();
+  // Move segments initialization to useEffect
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const { segments } = loadTrackData(
+        resolvedParams.playlistId,
+        resolvedParams.songId
+      );
+      setSegments(segments);
+    }
+  }, [resolvedParams.playlistId, resolvedParams.songId]);
 
-  // Update initial BPM state
   const [trackBPM, setTrackBPM] = useState<TrackBPM>(() => {
     if (typeof window === "undefined") {
-      console.log("[BPM Init] Window not defined");
       return { tempo: 128, isManual: true };
     }
-    
-    console.log("[BPM Init] Starting BPM initialization for:", {
-      playlistId: resolvedParams.playlistId,
-      songId: resolvedParams.songId,
-    });
-    
+
     // Try to load from storage first
-    const { bpm } = loadTrackData(
+    const storedBPM = TrackStorage.bpm.load(
       resolvedParams.playlistId,
       resolvedParams.songId
     );
-    console.log("[BPM Init] Loaded data:", { bpm });
     
-    if (bpm) {
-      console.log("[BPM Init] Using stored BPM:", bpm);
-      return bpm;
+    if (storedBPM) {
+      console.log("[BPM Init] Using stored BPM:", storedBPM);
+      return {
+        tempo: storedBPM.tempo,
+        isManual: storedBPM.isManual
+      };
     }
 
-    // If no stored BPM, try to extract from title
-    const bpmFromTitle = extractBPMFromTitle(track?.name || "");
-    if (bpmFromTitle) {
-      console.log("[BPM Init] Using BPM from title:", bpmFromTitle);
-      return { tempo: bpmFromTitle, isManual: false };
-    }
-    
-    // Only use 128 if we have no other source
-    console.log("[BPM Init] No BPM sources found, using default 128");
-    return { tempo: 128, isManual: false };
+    return { tempo: 128, isManual: true };
   });
 
-  // Add logging to setTrackBPM calls
-  const wrappedSetTrackBPM = (newBPM: TrackBPM) => {
-    console.log("[BPM Update] Setting new BPM:", {
-      from: trackBPM,
-      to: newBPM,
-      stack: new Error().stack,
+  // Add an effect to handle BPM updates
+  useEffect(() => {
+    if (!track) return;
+
+    const saveBPM = () => {
+      console.log("[BPM Save] Saving BPM:", trackBPM);
+      TrackStorage.bpm.save(
+        resolvedParams.playlistId,
+        resolvedParams.songId,
+        trackBPM.tempo,
+        trackBPM.isManual
+      );
+    };
+
+    saveBPM();
+  }, [trackBPM, resolvedParams.playlistId, resolvedParams.songId, track]);
+
+  // Update the BPM input handler
+  const handleBPMChange = (newBPM: number) => {
+    console.log("[BPM Change] New BPM:", newBPM);
+    setTrackBPM({
+      tempo: newBPM,
+      isManual: true
     });
-    setTrackBPM(newBPM);
   };
 
   // Update the BPMInput component
@@ -856,7 +867,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       
       // Save immediately when BPM changes
       if (track) {
-        BPMStorage.save(resolvedParams.playlistId, track.id, newValue);
+        TrackStorage.bpm.save(resolvedParams.playlistId, track.id, newValue);
       }
     };
 
@@ -893,89 +904,117 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     );
   };
 
-  // Initialize Spotify Web Playback SDK
+  // Update the player initialization useEffect
   useEffect(() => {
-    if (!track) return;
+    if (!window.Spotify && !isScriptLoaded) {
+      console.log("[Player Init] Loading Spotify SDK script");
+      const script = document.createElement("script");
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.async = true;
+      
+      script.onload = () => {
+        console.log("[Player Init] Script loaded");
+        setIsScriptLoaded(true);
+      };
 
-    const script = document.createElement("script");
-    script.src = "https://sdk.scdn.co/spotify-player.js";
-    script.async = true;
+      document.body.appendChild(script);
+    }
 
-    document.body.appendChild(script);
+    const initializePlayer = () => {
+      console.log("[Player Init] Starting initialization");
+      const accessToken = SpotifyAuthStorage.load();
+      if (!accessToken) {
+        console.error("[Player Init] No access token available");
+        return;
+      }
 
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      const accessToken = localStorage.getItem("spotify_access_token");
-      if (!accessToken) return;
-
-      const spotifyPlayer = new window.Spotify.Player({
-        name: "Workout Builder",
+      const player = new window.Spotify.Player({
+        name: "Workout Builder Web Player",
         getOAuthToken: (cb: (token: string) => void) => {
           cb(accessToken);
         },
-        volume: 0.5,
       });
 
-      spotifyPlayer.addListener(
-        "ready",
-        ({ device_id }: { device_id: string }) => {
-          console.log("Ready with Device ID", device_id);
-          setDeviceId(device_id);
-          setPlayer(spotifyPlayer);
-          setIsPlayerReady(true);
+      // Add event listeners
+      player.addListener("ready", ({ device_id }: { device_id: string }) => {
+        console.log("[Player Init] Ready with device ID:", device_id);
+        setDeviceId(device_id);
+        setIsPlayerReady(true);
+        setLoading(false);
+      });
 
-        // Transfer playback to this device
-          fetch("https://api.spotify.com/v1/me/player", {
-            method: "PUT",
-          headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            device_ids: [device_id],
-            play: false,
-          }),
-          });
-        }
-      );
+      player.addListener("not_ready", () => {
+        console.log("[Player Init] Device ID is not ready!");
+        setIsPlayerReady(false);
+      });
 
-      spotifyPlayer.addListener("player_state_changed", (state) => {
+      // Add player state change listener
+      player.addListener("player_state_changed", (state: any) => {
         if (!state) return;
 
-        setPlaybackState((prev) => ({
-          ...prev,
-          isPlaying: !state.paused,
-          position: state.position,
-          duration: state.duration,
-        }));
+        console.log("[Player State] State changed:", state);
 
-        // Clear existing interval
-        if (progressInterval.current) {
-          clearInterval(progressInterval.current);
-        }
+        // Update playback state
+        setPlaybackState((prev) => {
+          const newPosition = state.position;
+          const startTime = Date.now() - newPosition;
 
-        // Start new interval if playing
-        if (!state.paused) {
-          progressInterval.current = setInterval(() => {
-            setPlaybackState((prev) => ({
-              ...prev,
-              position: prev.position + 1000,
-            }));
-          }, 1000);
-        }
+          // Clear existing interval
+          if (progressInterval.current) {
+            clearInterval(progressInterval.current);
+            progressInterval.current = null;
+          }
+
+          // Set up new interval if playing
+          if (!state.paused) {
+            progressInterval.current = setInterval(() => {
+              const position = Date.now() - startTime;
+              if (position <= state.duration) {
+                setPlaybackState(prev => ({
+                  ...prev,
+                  position: position,
+                }));
+              }
+            }, 50); // Update every 50ms for smoother progress
+          }
+
+          return {
+            ...prev,
+            isPlaying: !state.paused,
+            position: newPosition,
+            duration: state.duration,
+            hasStarted: true,
+            track_window: {
+              current_track: {
+                id: state.track_window?.current_track?.id,
+              },
+            },
+          };
+        });
       });
 
-      spotifyPlayer.connect();
+      player.connect().then(success => {
+        if (success) {
+          console.log("[Player Init] Connected successfully");
+          setPlayer(player);
+        } else {
+          console.error("[Player Init] Failed to connect");
+        }
+      });
     };
 
+    if (window.Spotify && !player) {
+      window.onSpotifyWebPlaybackSDKReady = initializePlayer;
+      initializePlayer();
+    }
+
     return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
       if (player) {
-        player.disconnect();
+        console.log("[Player Cleanup] Starting cleanup");
+        cleanupPlayer(player, deviceId).catch(console.error);
       }
     };
-  }, [track]);
+  }, [isScriptLoaded, player, deviceId]);
 
   // Update track loading effect
   useEffect(() => {
@@ -985,7 +1024,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       });
       
       try {
-        const accessToken = localStorage.getItem("spotify_access_token");
+        const accessToken = SpotifyAuthStorage.load();
         if (!accessToken) {
           router.push("/");
           return;
@@ -1008,21 +1047,21 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         setTrack(data);
 
         // Try to load BPM from storage first
-        const storedBPM = BPMStorage.load(
+        const storedBPM = TrackStorage.bpm.load(
           resolvedParams.playlistId,
           data.id
         );
         if (storedBPM) {
           console.log("[Track Load] Using stored BPM:", storedBPM);
-          wrappedSetTrackBPM({
-            tempo: storedBPM.bpm,
-            isManual: storedBPM.source === "manual",
+          setTrackBPM({
+            tempo: storedBPM.tempo,
+            isManual: storedBPM.isManual,
           });
         } else {
           // If no stored BPM, extract from sources
           console.log("[Track Load] No stored BPM, extracting from sources");
           const bpmData = await getBPMFromSources(data, resolvedParams.playlistId);
-          wrappedSetTrackBPM({
+          setTrackBPM({
             tempo: bpmData.bpm,
             isManual: bpmData.source === "manual",
           });
@@ -1035,7 +1074,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     };
 
     fetchTrack();
-  }, [resolvedParams.songId, router, resolvedParams.playlistId]);
+  }, [resolvedParams.songId, resolvedParams.playlistId, router]);
 
   // Update the save effect
   useEffect(() => {
@@ -1130,7 +1169,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   const togglePlayback = async () => {
     if (!player || !track || !deviceId || !isPlayerReady) return;
 
-    const accessToken = localStorage.getItem("spotify_access_token");
+    const accessToken = SpotifyAuthStorage.load();
     if (!accessToken) return;
 
     try {
@@ -1327,6 +1366,19 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     // ... rest of your initialization code
   }, []);
 
+  // Update the useEffect for player initialization to include cleanup
+  useEffect(() => {
+    // ... existing initialization code ...
+
+    return () => {
+      if (player) {
+        console.log("[Player Cleanup] Starting cleanup");
+        cleanupPlayer(player, deviceId).catch(console.error);
+      }
+    };
+  }, [isScriptLoaded]);
+
+
   if (loading || !track) {
     return (
       <LoadingState
@@ -1356,10 +1408,12 @@ export default function SongSegmentEditor({ params }: { params: any }) {
           <div className="flex items-start gap-6">
             <div className="flex items-center gap-6">
               {track.album?.images?.[0] && (
-                <img
+                <Image
                   src={track.album.images[0].url}
                   alt={track.name}
-                  className="w-32 h-32 rounded"
+                  width={48}
+                  height={48}
+                  className="rounded"
                 />
               )}
               <div>
@@ -1376,9 +1430,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
               <div className="bg-white/5 px-6 py-4 rounded-lg">
                 <BPMInput 
                   value={trackBPM.tempo}
-                  onChange={(bpm) =>
-                    setTrackBPM({ tempo: bpm, isManual: true })
-                  }
+                  onChange={handleBPMChange}
                 />
               </div>
               <div className="mt-2 text-sm text-gray-400">

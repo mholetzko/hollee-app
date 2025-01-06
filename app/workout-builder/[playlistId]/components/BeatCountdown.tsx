@@ -80,8 +80,6 @@ export function BeatCountdown({
     }
   }, [beatsUntilNext, timeToNext, beatDuration])
 
-  if (beatsUntilNext > 8) return null
-
   return (
     <div className="flex-1 p-6 bg-black/20 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
       {/* Animated background */}

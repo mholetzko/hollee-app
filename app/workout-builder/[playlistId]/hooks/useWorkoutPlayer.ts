@@ -4,13 +4,12 @@
 //     setSegments(newSegments);
 //     if (bpm) setTrackBPM(bpm);
 
-//     const token = localStorage.getItem('spotify_access_token');
+//     const token = SpotifyAuthStorage.load();
     
 //     if (isMobile) {
-//       // For mobile, use the active device from localStorage
-//       const activeDevice = localStorage.getItem('spotify_active_device');
+//       const devices = DeviceStorage.load();
+//       const activeDevice = devices.find(d => d.is_active);
       
-//       // If no device is selected, show device selector
 //       if (!activeDevice) {
 //         setShowDeviceSelector(true);
 //         throw new Error('No active device selected');

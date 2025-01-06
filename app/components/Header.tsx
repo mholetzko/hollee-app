@@ -3,15 +3,13 @@
 import { Logo } from './Logo';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { SpotifyAuthStorage } from '../utils/storage/SpotifyAuthStorage';
 
 export const Header = () => {
   const router = useRouter();
 
   const handleLogout = () => {
-    // Only remove the Spotify access token
-    localStorage.removeItem("spotify_access_token");
-    
-    // Redirect to login page
+    SpotifyAuthStorage.clear();
     router.push("/");
   };
 

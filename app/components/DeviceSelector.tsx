@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { SpotifyAuthStorage } from "../utils/storage/SpotifyAuthStorage";
 
 interface SpotifyDevice {
   id: string;
@@ -10,36 +11,43 @@ interface SpotifyDevice {
   type: string;
 }
 
-export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: () => void }) => {
+export const DeviceSelector = ({
+  onDeviceSelected,
+}: {
+  onDeviceSelected?: () => void;
+}) => {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchDevices = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('spotify_access_token');
-      const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const token = SpotifyAuthStorage.load();
+      const response = await fetch(
+        "https://api.spotify.com/v1/me/player/devices",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const data = await response.json();
       setDevices(data.devices);
     } catch (error) {
-      console.error('Error fetching devices:', error);
+      console.error("Error fetching devices:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const activateDevice = async (deviceId: string) => {
-    const token = localStorage.getItem('spotify_access_token');
+    const token = SpotifyAuthStorage.load();
     try {
-      await fetch('https://api.spotify.com/v1/me/player', {
-        method: 'PUT',
+      await fetch("https://api.spotify.com/v1/me/player", {
+        method: "PUT",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           device_ids: [deviceId],
@@ -47,7 +55,7 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: () => 
       });
       onDeviceSelected?.();
     } catch (error) {
-      console.error('Error activating device:', error);
+      console.error("Error activating device:", error);
     }
   };
 
@@ -76,15 +84,21 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: () => 
                 key={device.id}
                 onClick={() => activateDevice(device.id)}
                 className={`w-full p-4 rounded-lg text-left transition-colors
-                  ${device.is_active 
-                    ? 'bg-green-500/20 border border-green-500/50' 
-                    : 'bg-white/5 hover:bg-white/10'}`}
+                  ${
+                    device.is_active
+                      ? "bg-green-500/20 border border-green-500/50"
+                      : "bg-white/5 hover:bg-white/10"
+                  }`}
               >
                 <div className="font-medium">{device.name}</div>
                 <div className="text-sm text-gray-400">{device.type}</div>
               </button>
             ))}
-            <Button onClick={fetchDevices} variant="outline" className="w-full mt-4">
+            <Button
+              onClick={fetchDevices}
+              variant="outline"
+              className="w-full mt-4"
+            >
               Refresh Devices
             </Button>
           </div>
@@ -92,4 +106,4 @@ export const DeviceSelector = ({ onDeviceSelected }: { onDeviceSelected?: () => 
       </div>
     </div>
   );
-}; 
+};

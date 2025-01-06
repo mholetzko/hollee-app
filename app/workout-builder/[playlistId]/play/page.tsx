@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -16,7 +16,6 @@ import {
   PlaybackState,
   TrackBPM,
   Segment,
-  getStorageKey,
   WorkoutType,
   WORKOUT_LABELS,
 } from "../types";
@@ -24,7 +23,9 @@ import { WorkoutDisplay } from "../components/WorkoutDisplay";
 import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
 import { SegmentTimeline } from "../components/SegmentTimeline";
-import { BPMStorage } from "../utils/storage";
+import { TrackStorage } from "../../../utils/storage/TrackStorage";
+import { SpotifyAuthStorage } from '../../../utils/storage/SpotifyAuthStorage';
+import { DeviceStorage } from '../../../utils/storage/DeviceStorage';
 
 // Add types if not already defined in types.ts
 declare global {
@@ -34,10 +35,6 @@ declare global {
     };
     onSpotifyWebPlaybackSDKReady: () => void;
   }
-}
-
-interface Params {
-  readonly playlistId: string;
 }
 
 const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
@@ -76,10 +73,7 @@ const WorkoutBadge = ({ type }: { type: WorkoutType }) => {
   };
 
   return (
-    <div
-      className={`px-4 py-2 rounded-lg ${badgeStyles[type].bg} 
-      flex flex-col items-center justify-center`}
-    >
+    <div className={`px-4 py-2 rounded-lg ${badgeStyles[type].bg} flex flex-col items-center justify-center`}>
       <div className={`text-2xl font-bold ${badgeStyles[type].text}`}>
         {WORKOUT_LABELS[type]}
       </div>
@@ -87,7 +81,6 @@ const WorkoutBadge = ({ type }: { type: WorkoutType }) => {
   );
 };
 
-// Add this small badge component for the track list
 const SmallWorkoutBadge = ({ type }: { type: WorkoutType }) => {
   const badgeStyles: Record<WorkoutType, { bg: string; text: string }> = {
     PLS: { bg: "bg-purple-500/20", text: "text-purple-300" },
@@ -101,10 +94,7 @@ const SmallWorkoutBadge = ({ type }: { type: WorkoutType }) => {
   };
 
   return (
-    <div
-      className={`px-3 py-1.5 rounded-md ${badgeStyles[type].bg} ${badgeStyles[type].text} 
-      text-sm font-medium`}
-    >
+    <div className={`px-3 py-1.5 rounded-md ${badgeStyles[type].bg} ${badgeStyles[type].text} text-sm font-medium`}>
       {WORKOUT_LABELS[type]}
     </div>
   );
@@ -142,11 +132,7 @@ const GlobalWorkoutTimeline = ({
       const trackSegments =
         track.id === tracks[currentTrackIndex].id
           ? currentTrackSegments
-          : JSON.parse(
-              localStorage.getItem(
-                getStorageKey(playlistId, track.id, "segments")
-              ) || "[]"
-            );
+          : TrackStorage.segments.load(playlistId, track.id);
 
       return trackSegments.map((segment: Segment) => ({
         ...segment,
@@ -273,244 +259,358 @@ const GlobalWorkoutTimeline = ({
   );
 };
 
+// Add this cleanup function near your other utility functions
+const cleanupPlayer = async (
+  player: any, 
+  deviceId: string,
+  progressInterval: React.MutableRefObject<NodeJS.Timeout | null>,
+  setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>,
+  setPlayer: React.Dispatch<React.SetStateAction<any>>,
+  setDeviceId: React.Dispatch<React.SetStateAction<string>>,
+  setIsPlayerReady: React.Dispatch<React.SetStateAction<boolean>>
+) => {
+  if (!player) return;
+
+  try {
+    console.log("[cleanupPlayer] Starting cleanup sequence");
+
+    // 1. First pause playback using both methods
+    const token = SpotifyAuthStorage.load();
+    if (token) {
+      await Promise.all([
+        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(console.error),
+        player.pause().catch(console.error)
+      ]);
+    }
+
+    // 2. Clear all intervals immediately
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
+
+    // 3. Remove all event listeners
+    player.removeListener('ready');
+    player.removeListener('not_ready');
+    player.removeListener('player_state_changed');
+    player.removeListener('initialization_error');
+    player.removeListener('authentication_error');
+    player.removeListener('account_error');
+    player.removeListener('playback_error');
+
+    // 4. Disconnect the player
+    await player.disconnect();
+
+    // 5. Reset all states
+    setPlaybackState({
+      isPlaying: false,
+      position: 0,
+      duration: 0,
+      hasStarted: false,
+      track_window: { current_track: { id: "" } },
+    });
+    
+    setPlayer(null);
+    setDeviceId("");
+    setIsPlayerReady(false);
+
+    console.log("[cleanupPlayer] Cleanup sequence completed");
+  } catch (error) {
+    console.error("[cleanupPlayer] Error during cleanup:", error);
+    throw error; // Re-throw to handle in calling function
+  }
+};
+
 export default function WorkoutPlayer({
   params,
-}: Readonly<{
-  params: Params;
-}>) {
-  const resolvedParams = React.use(params as unknown as any);
+}: any) {
+  const playlistId = params.playlistId;
+
+  // All state declarations first
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-
-  // Playback state
   const [player, setPlayer] = useState<any>(null);
+  const [deviceId, setDeviceId] = useState<string>("");
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [trackBPM, setTrackBPM] = useState<TrackBPM>({ tempo: 128, isManual: true });
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     isPlaying: false,
     position: 0,
     duration: 0,
     hasStarted: false,
-    track_window: {
-      current_track: {
-        id: "",
-      },
-    },
+    track_window: { current_track: { id: "" } },
   });
-  const [deviceId, setDeviceId] = useState<string>("");
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [currentTrackStartTime, setCurrentTrackStartTime] = useState(0);
+
+  // Add currentTrack memoization
+  const currentTrack = useMemo(() => tracks[currentTrackIndex], [tracks, currentTrackIndex]);
+
+  // All refs next
+  const positionRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
-
-  // Track BPM state
-  const [trackBPM, setTrackBPM] = useState<TrackBPM>({
-    tempo: 128,
-    isManual: true,
-  });
-
-  // Replace let isPlayingNextTrack = false with a ref
-  const isPlayingNextTrack = useRef(false);
-
-  // Add refs to access latest values in effects
   const tracksRef = useRef<Track[]>(tracks);
   const currentTrackIndexRef = useRef<number>(currentTrackIndex);
+  const isPlayingNextTrack = useRef(false);
 
-  // Update refs when values change
-  useEffect(() => {
-    tracksRef.current = tracks;
-    console.log("[Tracks Ref] Updated:", {
-      tracksLength: tracks.length,
-      refLength: tracksRef.current.length,
-    });
-  }, [tracks]);
+  // Add a state to track script loading
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
 
-  useEffect(() => {
-    currentTrackIndexRef.current = currentTrackIndex;
-    console.log("[Track Index Ref] Updated:", {
-      currentIndex: currentTrackIndex,
-      refIndex: currentTrackIndexRef.current,
-    });
-  }, [currentTrackIndex]);
+  // Define playTrack first since it's used by playNextTrack
+  const playTrack = useCallback(async (trackId: string) => {
+    try {
+      if (!player || !deviceId) {
+        throw new Error("Player or device ID not available");
+      }
 
-  // Initialize Spotify Web Playback SDK
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://sdk.scdn.co/spotify-player.js";
-    script.async = true;
+      const token = SpotifyAuthStorage.load();
+      if (!token) {
+        throw new Error("No access token available");
+      }
 
-    document.body.appendChild(script);
-
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      const accessToken = localStorage.getItem("spotify_access_token");
-      if (!accessToken) return;
-
-      const player = new window.Spotify.Player({
-        name: `Workout Player ${Math.random().toString(36).substring(7)}`,
-        getOAuthToken: (cb: (token: string) => void) => cb(accessToken),
-      });
-
-      player.addListener("ready", ({ device_id }: { device_id: string }) => {
-        console.log("Player ready with device ID:", device_id);
-        setDeviceId(device_id);
-        setIsPlayerReady(true);
-
-        // Transfer playback to this device
-        fetch("https://api.spotify.com/v1/me/player", {
+      // First pause and seek to 0
+      await Promise.all([
+        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(() => {}),
+        fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=0&device_id=${deviceId}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(() => {})
+      ]);
+
+      // Wait for pause and seek to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Then start playing from beginning
+      const response = await fetch(
+        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            device_ids: [device_id],
-            play: false,
+            uris: [`spotify:track:${trackId}`],
+            position_ms: 0,
           }),
-        });
-      });
+        }
+      );
 
-      let isHandlingStateChange = false;
+      if (response.status === 204) {
+        // Reset all position tracking
+        startTimeRef.current = Date.now();
+        positionRef.current = 0;
+        
+        // Force player to seek to beginning
+        await player.seek(0);
+        
+        setPlaybackState((prev) => ({
+          ...prev,
+          isPlaying: true,
+          position: 0,
+          hasStarted: true,
+          track_window: {
+            current_track: { id: trackId },
+          },
+        }));
 
-      const handleStateChange = async (state: any) => {
-        if (!state || isHandlingStateChange) return;
-        isHandlingStateChange = true;
+        return;
+      }
 
-        try {
-          // Get latest values from refs
-          const currentIndex = currentTrackIndexRef.current;
-          const currentTracks = tracksRef.current;
+      throw new Error(`Failed to play track: ${response.status}`);
+    } catch (error) {
+      console.error("[playTrack] Error:", error);
+      throw error;
+    }
+  }, [player, deviceId]);
 
-          // Add check for tracks
-          if (!currentTracks || currentTracks.length === 0) {
-            console.log("[Player State] No tracks available");
-            return;
-          }
+  // Then define playNextTrack
+  const playNextTrack = useCallback(async () => {
+    if (isPlayingNextTrack.current) {
+      console.log("[playNextTrack] Already playing next track");
+      return;
+    }
 
-          console.log("[Player State] Changed:", {
-            paused: state.paused,
-            position: state.position,
-            duration: state.duration,
-            track: state.track_window?.current_track?.id,
-            currentTrackIndex: currentIndex,
-            totalTracks: currentTracks.length,
-            tracksAvailable: !!currentTracks,
-          });
+    isPlayingNextTrack.current = true;
+    console.log("[playNextTrack] Starting next track");
 
-          // Update playback state first
-          setPlaybackState({
-            isPlaying: !state.paused,
-            position: state.position,
-            duration: state.duration,
-            track_window: {
-              current_track: {
-                id: state.track_window?.current_track?.id,
-              },
-            },
-          });
+    try {
+      const nextTrackIndex = currentTrackIndexRef.current + 1;
+      if (nextTrackIndex >= tracksRef.current.length) {
+        console.log("[playNextTrack] Reached end of playlist");
+        isPlayingNextTrack.current = false;
+        return;
+      }
 
-          // Handle progress tracking
-          if (!state.paused) {
-            if (progressInterval.current) {
-              clearInterval(progressInterval.current);
-            }
-            const startTime = Date.now() - state.position;
-            progressInterval.current = setInterval(() => {
-              const position = Date.now() - startTime;
-              setPlaybackState((prev) => ({
+      setCurrentTrackIndex(nextTrackIndex);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const nextTrack = tracksRef.current[nextTrackIndex];
+      await playTrack(nextTrack.id);
+      
+      console.log("[playNextTrack] Successfully started next track");
+    } catch (error) {
+      console.error("[playNextTrack] Error playing next track:", error);
+    } finally {
+      setTimeout(() => {
+        isPlayingNextTrack.current = false;
+      }, 1000);
+    }
+  }, [playTrack]);
+
+  // Update the playback state handling effect
+  useEffect(() => {
+    if (!player) return;
+
+    const handleStateChange = (state: any) => {
+      if (!state) return;
+
+      // Update playback state in a single update
+      setPlaybackState((prev) => {
+        const newPosition = state.position;
+        const startTime = Date.now() - newPosition;
+
+        // Clear existing interval
+        if (progressInterval.current) {
+          clearInterval(progressInterval.current);
+        }
+
+        // Set up new interval if playing
+        if (!state.paused) {
+          progressInterval.current = setInterval(() => {
+            const position = Date.now() - startTime;
+            if (position <= currentTrack?.duration_ms) {
+              setPlaybackState(prev => ({
                 ...prev,
                 position: position,
               }));
-            }, 50);
-          } else {
-            if (progressInterval.current) {
-              clearInterval(progressInterval.current);
             }
-          }
-
-          // Handle track end and next track
-          const isNearEnd =
-            state.duration && state.position >= state.duration - 1000;
-          const isTrackEnd =
-            state.paused && (state.position === 0 || isNearEnd);
-          const canPlayNext = currentIndex < currentTracks.length - 1;
-          const shouldPlayNext =
-            isTrackEnd && !isPlayingNextTrack.current && canPlayNext;
-
-          console.log("[Player State] Track end check:", {
-            isNearEnd,
-            isTrackEnd,
-            canPlayNext,
-            shouldPlayNext,
-            position: state.position,
-            duration: state.duration,
-            currentIndex,
-            totalTracks: currentTracks.length,
-            isPlayingNext: isPlayingNextTrack.current,
-          });
-
-          if (shouldPlayNext) {
-            console.log("[Player State] Triggering next track");
-            isPlayingNextTrack.current = true;
-
-            // Small delay to ensure clean transition
-            setTimeout(async () => {
-              try {
-                await playNextTrack();
-              } catch (error) {
-                console.error("[Auto Next] Error playing next track:", error);
-                isPlayingNextTrack.current = false;
-              }
-            }, 500);
-          }
-        } catch (error) {
-          console.error("[Player State] Error handling state change:", error);
-        } finally {
-          setTimeout(() => {
-            isHandlingStateChange = false;
-          }, 200);
+          }, 50);
         }
-      };
 
-      player.addListener(
-        "player_state_changed",
-        debounce(handleStateChange, 200)
-      );
-
-      player.connect();
-      setPlayer(player);
+        return {
+          ...prev,
+          isPlaying: !state.paused,
+          position: newPosition,
+          duration: state.duration,
+          hasStarted: true,
+          track_window: {
+            current_track: {
+              id: state.track_window?.current_track?.id,
+            },
+          },
+        };
+      });
     };
+
+    player.addListener("player_state_changed", handleStateChange);
 
     return () => {
       if (progressInterval.current) {
         clearInterval(progressInterval.current);
       }
-      if (player) {
-        player.disconnect();
+      player.removeListener("player_state_changed", handleStateChange);
+    };
+  }, [player, currentTrack?.duration_ms]);
+
+  // 2. Update the togglePlayback function
+  const togglePlayback = async () => {
+    try {
+      if (!player || !deviceId || !currentTrack) {
+        console.error("[togglePlayback] Player, device ID, or track not available");
+        return;
       }
+
+      if (!playbackState.isPlaying) {
+        // If starting playback, use playTrack to ensure we start from beginning
+        await playTrack(currentTrack.id);
+      } else {
+        // If pausing, use regular pause
+        const token = SpotifyAuthStorage.load();
+        if (!token) return;
+
+        await fetch(
+          `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setPlaybackState((prev) => ({
+          ...prev,
+          isPlaying: false,
+        }));
+      }
+    } catch (error) {
+      console.error("[togglePlayback] Error:", error);
+    }
+  };
+
+  const playPreviousTrack = useCallback(async () => {
+    const prevTrackIndex = currentTrackIndexRef.current - 1;
+    if (prevTrackIndex < 0) return;
+
+    setCurrentTrackIndex(prevTrackIndex);
+    const prevTrack = tracksRef.current[prevTrackIndex];
+    await playTrack(prevTrack.id);
+  }, [playTrack]);
+
+  // Move loadTrackData outside the component or memoize it
+  const loadTrackData = useCallback((playlistId: string, trackId: string) => {
+    if (typeof window === "undefined") return { segments: [], bpm: null };
+
+    console.log("[loadTrackData] Loading data for track:", trackId);
+
+    // Load segments and BPM using TrackStorage
+    const segments = TrackStorage.segments.load(playlistId, trackId);
+    const storedBPM = TrackStorage.bpm.load(playlistId, trackId);
+
+    const bpmData = storedBPM ? { 
+      tempo: Number(storedBPM.tempo),
+      isManual: storedBPM.source === 'manual' 
+    } : null;
+
+    return {
+      segments,
+      bpm: bpmData,
     };
   }, []);
 
-  // Add a separate effect to handle initial track play when player becomes ready
+  // 2. Then define all effects that use these functions
   useEffect(() => {
-    if (isPlayerReady && tracks.length > 0 && !playbackState.isPlaying) {
-      console.log("Player ready and tracks loaded, playing initial track");
-      playTrack(tracks[currentTrackIndex].id);
-    }
-  }, [isPlayerReady, tracks]);
+    tracksRef.current = tracks;
+  }, [tracks]);
 
-  // Load playlist tracks
+  useEffect(() => {
+    currentTrackIndexRef.current = currentTrackIndex;
+  }, [currentTrackIndex]);
+
+  // Add effect to fetch tracks
   useEffect(() => {
     const fetchTracks = async () => {
       try {
-        const accessToken = localStorage.getItem("spotify_access_token");
+        const accessToken = SpotifyAuthStorage.load();
         if (!accessToken) {
-          router.push("/");
+          router.push('/');
           return;
         }
 
-        console.log("[Fetch Tracks] Starting fetch");
-
-        const playlistId = resolvedParams.playlistId;
         const response = await fetch(
           `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
           {
@@ -520,290 +620,251 @@ export default function WorkoutPlayer({
           }
         );
 
-        if (!response.ok) throw new Error("Failed to fetch tracks");
-        const data = await response.json();
-
-        // Filter tracks with configured segments
-        const configuredTracks = data.items
-          .map((item: any) => item.track)
-          .filter((track: Track) => {
-            const segments = JSON.parse(
-              localStorage.getItem(
-                getStorageKey(playlistId, track.id, "segments")
-              ) ?? "[]"
-            );
-            return segments.length > 0;
-          });
-
-        console.log("[Fetch Tracks] Configured tracks:", {
-          total: configuredTracks.length,
-          tracks: configuredTracks.map((t) => t.id),
-        });
-
-        // Update ref first, then state
-        tracksRef.current = configuredTracks;
-        setTracks(configuredTracks);
-
-        // Log the current state of refs
-        console.log("[Fetch Tracks] Updated refs:", {
-          tracksRefLength: tracksRef.current.length,
-          currentTrackIndexRef: currentTrackIndexRef.current,
-        });
-
-        // Load initial track's data
-        if (configuredTracks.length > 0) {
-          const initialTrack = configuredTracks[0];
-          const { segments, bpm } = loadTrackData(playlistId, initialTrack.id);
-          setSegments(segments);
-          if (bpm) {
-            setTrackBPM(bpm);
-          }
+        if (!response.ok) {
+          throw new Error('Failed to fetch tracks');
         }
+
+        const data = await response.json();
+        const trackList = data.items
+          .map((item: any) => item.track)
+          .filter((track: any) => track !== null);
+        
+        setTracks(trackList);
+        setLoading(false);
       } catch (error) {
-        console.error("[Fetch Tracks] Error:", error);
-        setError("Failed to load tracks");
-      } finally {
+        console.error('Error fetching tracks:', error);
+        setError('Failed to load tracks');
         setLoading(false);
       }
     };
 
     fetchTracks();
-  }, [resolvedParams.playlistId]);
+  }, [playlistId, router]);
 
-  // Handle track changes
+  // Add effect to initialize Spotify player
   useEffect(() => {
-    if (tracks[currentTrackIndex]) {
-      const track = tracks[currentTrackIndex];
-      console.log("[Track Change] Loading track:", track.id);
-
-      // Load track data first
-      const { segments, bpm } = loadTrackData(
-        resolvedParams.playlistId,
-        track.id
-      );
-      setSegments(segments);
-      if (bpm) {
-        setTrackBPM(bpm);
+    const initializePlayer = () => {
+      console.log("[Player Init] Starting initialization");
+      const accessToken = SpotifyAuthStorage.load();
+      if (!accessToken) {
+        setError("No access token available");
+        return;
       }
 
-      // Set flag and play track
-      isPlayingNextTrack.current = true;
-      playTrack(track.id).catch((error) => {
-        console.error("[Track Change] Playback error:", error);
-        isPlayingNextTrack.current = false;
-      });
-    }
-  }, [currentTrackIndex, tracks]);
-
-  // Add a new function to wait for player readiness
-  const waitForPlayerReady = async () => {
-    const maxAttempts = 10;
-    const delayMs = 500;
-    
-    for (let i = 0; i < maxAttempts; i++) {
-      if (isPlayerReady && deviceId) {
-        return true;
-      }
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
-    throw new Error('Player failed to initialize');
-  };
-
-  // Update the playTrack function
-  const playTrack = async (trackId: string, retryCount = 0) => {
-    console.log("[playTrack] Starting playback for track:", trackId, "retry:", retryCount);
-    
-    try {
-      // Wait for player to be ready before proceeding
-      await waitForPlayerReady();
-      
-      const token = localStorage.getItem("spotify_access_token");
-      
-      // Always use the Web Playback SDK device ID
-      console.log("[playTrack] Using device ID:", deviceId);
-
-      // First ensure any current playback is paused
-      await fetch("https://api.spotify.com/v1/me/player/pause", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const player = new window.Spotify.Player({
+        name: "Workout Builder Web Player",
+        getOAuthToken: (cb: (token: string) => void) => {
+          cb(accessToken);
         },
-      }).catch(() => {}); // Ignore pause errors
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Always use the SDK device ID for playback
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          uris: [`spotify:track:${trackId}`],
-          position_ms: 0,
-        }),
       });
 
-      console.log("[playTrack] Response status:", response.status);
+      // Add more detailed logging
+      player.addListener("initialization_error", ({ message }: { message: string }) => {
+        console.error("[Player Init] Initialization error:", message);
+        setError(`Player initialization failed: ${message}`);
+      });
 
-      if (response.status === 204) {
-        console.log("[playTrack] Playback started successfully");
-        setPlaybackState((prev) => ({
-          ...prev,
-          isPlaying: true,
-          position: 0,
+      player.addListener("authentication_error", ({ message }: { message: string }) => {
+        console.error("[Player Init] Authentication error:", message);
+        setError(`Authentication failed: ${message}`);
+      });
+
+      player.addListener("account_error", ({ message }: { message: string }) => {
+        console.error("[Player Init] Account error:", message);
+        setError(`Account error: ${message}`);
+      });
+
+      player.addListener("playback_error", ({ message }: { message: string }) => {
+        console.error("[Player Init] Playback error:", message);
+      });
+
+      player.addListener("ready", ({ device_id }: { device_id: string }) => {
+        console.log("[Player Init] Ready with device ID:", device_id);
+        setDeviceId(device_id);
+        DeviceStorage.save([{ id: device_id, is_active: true, name: 'Web Player', type: 'Computer' }]);
+        setIsPlayerReady(true);
+        setLoading(false);
+      });
+
+      player.addListener("not_ready", () => {
+        console.log("[Player Init] Device ID is not ready!");
+        setIsPlayerReady(false);
+      });
+
+      player.addListener("player_state_changed", (state: any) => {
+        console.log("[Player State] State changed:", state);
+        if (!state) return;
+
+        setPlaybackState({
+          isPlaying: !state.paused,
+          position: state.position,
+          duration: state.duration,
           hasStarted: true,
           track_window: {
             current_track: {
-              id: trackId,
+              id: state.track_window.current_track.id,
             },
           },
-        }));
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("[playTrack] Error:", {
-          status: response.status,
-          data: errorData,
         });
-
-        // Only retry up to 3 times
-        if (retryCount < 3) {
-          console.log("[playTrack] Retrying transfer and playback...");
-          
-          await fetch("https://api.spotify.com/v1/me/player", {
-            method: "PUT",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              device_ids: [deviceId],
-              play: false,
-            }),
-          });
-
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          return await playTrack(trackId, retryCount + 1);
-        }
-
-        throw new Error(
-          `Playback failed: ${errorData.error?.message || response.statusText}`
-        );
-      }
-    } catch (error) {
-      console.error("[playTrack] Error:", error);
-      throw error;
-    }
-  };
-
-  const playNextTrack = async () => {
-    console.log("[Next Track] Starting with:", {
-      currentIndex: currentTrackIndexRef.current,
-      isPlayingNext: isPlayingNextTrack.current,
-      totalTracks: tracksRef.current.length,
-      tracks: tracksRef.current.map((t) => t.id),
-    });
-
-    try {
-      if (currentTrackIndexRef.current >= tracksRef.current.length - 1) {
-        console.log("[Next Track] Already at last track");
-        return;
-      }
-
-      const nextIndex = currentTrackIndexRef.current + 1;
-      const nextTrack = tracksRef.current[nextIndex];
-
-      console.log("[Next Track] Playing track:", {
-        fromIndex: currentTrackIndexRef.current,
-        toIndex: nextIndex,
-        nextTrackId: nextTrack?.id,
       });
 
-      setCurrentTrackIndex(nextIndex);
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      await playTrack(nextTrack.id);
-    } catch (error) {
-      console.error("[Next Track] Error:", error);
-      throw error;
-    } finally {
-      setTimeout(() => {
-        isPlayingNextTrack.current = false;
-        console.log("[Next Track] Reset playing next flag");
-      }, 1000);
-    }
-  };
-
-  // Debounce function to limit the rate of function calls
-  const debounce = (func, delay) => {
-    let timeout;
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), delay);
-    };
-  };
-
-  // Use debounce for playNextTrack
-  const debouncedPlayNextTrack = debounce(playNextTrack, 1000);
-
-  const playPreviousTrack = async () => {
-    if (currentTrackIndex > 0) {
-      setCurrentTrackIndex((prev) => prev - 1);
-      const prevTrack = tracks[currentTrackIndex - 1];
-      playTrack(prevTrack.id);
-    }
-  };
-
-  const togglePlayback = async () => {
-    console.log("[togglePlayback] Current state:", playbackState.isPlaying);
-
-    const token = localStorage.getItem("spotify_access_token");
-    const activeDevice = localStorage.getItem("spotify_active_device");
-
-    try {
-      const response = await fetch(
-        "https://api.spotify.com/v1/me/player/" +
-          (playbackState.isPlaying ? "pause" : "play"),
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          ...(activeDevice && {
-            body: JSON.stringify({
-              device_id: activeDevice,
-            }),
-          }),
+      console.log("[Player Init] Connecting player...");
+      player.connect().then((success: boolean) => {
+        if (success) {
+          console.log("[Player Init] Connected successfully");
+          setPlayer(player);
+        } else {
+          console.error("[Player Init] Failed to connect");
+          setError("Failed to connect to Spotify");
         }
-      );
+      });
+    };
 
-      if (response.status === 204) {
-        console.log("[togglePlayback] Success");
-        setPlaybackState((prev) => ({
-          ...prev,
-          isPlaying: !prev.isPlaying,
-        }));
-        return;
+    if (!window.Spotify && !isScriptLoaded) {
+      console.log("[Player Init] Loading Spotify SDK script");
+      const script = document.createElement("script");
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.async = true;
+      
+      script.onload = () => {
+        console.log("[Player Init] Script loaded");
+        setIsScriptLoaded(true);
+      };
+
+      document.body.appendChild(script);
+    }
+
+    if (window.Spotify && !player) {
+      window.onSpotifyWebPlaybackSDKReady = initializePlayer;
+      initializePlayer();
+    }
+
+    return () => {
+      if (player) {
+        console.log("[Player Cleanup] Starting cleanup");
+        cleanupPlayer(
+          player, 
+          deviceId, 
+          progressInterval, 
+          setPlaybackState,
+          setPlayer,
+          setDeviceId,
+          setIsPlayerReady
+        ).catch(console.error);
+      }
+    };
+  }, [isScriptLoaded]);
+
+  // Add effect to load track data when track changes
+  useEffect(() => {
+    if (tracks[currentTrackIndex]) {
+      const trackData = loadTrackData(playlistId, tracks[currentTrackIndex].id);
+      setSegments(trackData.segments);
+      if (trackData.bpm) {
+        setTrackBPM(trackData.bpm);
+      }
+    }
+  }, [currentTrackIndex, tracks, playlistId, loadTrackData]);
+
+  // Add this effect after your other effects
+  useEffect(() => {
+    const startTime = tracks
+      .slice(0, currentTrackIndex)
+      .reduce((acc, track) => acc + track.duration_ms, 0);
+    setCurrentTrackStartTime(startTime);
+  }, [currentTrackIndex, tracks]);
+
+  // Move handleBack to the top with other hooks
+  const handleBack = useCallback(async () => {
+    try {
+      console.log("[handleBack] Starting navigation sequence");
+
+      if (player && deviceId) {
+        // Force pause first
+        try {
+          await player.pause();
+        } catch (e) {
+          console.error("[handleBack] Error pausing:", e);
+        }
+
+        // Wait a moment for pause to take effect
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Perform full cleanup
+        await cleanupPlayer(
+          player, 
+          deviceId, 
+          progressInterval, 
+          setPlaybackState,
+          setPlayer,
+          setDeviceId,
+          setIsPlayerReady
+        );
+
+        // Wait another moment for cleanup to settle
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      if (!response.ok) {
-        throw new Error(
-          `Failed to ${playbackState.isPlaying ? "pause" : "play"}`
-        );
+      console.log("[handleBack] Navigation sequence complete, redirecting...");
+      
+      // Use replace instead of push to prevent back navigation
+      if (playlistId) {
+        router.replace(`/workout-builder/${playlistId}`);
+      } else {
+        router.replace('/dashboard');
       }
     } catch (error) {
-      console.error("[togglePlayback] Error:", error);
-      setShowDeviceSelector(true);
+      console.error("[handleBack] Error during navigation:", error);
+      // Force navigation even if cleanup fails
+      router.replace(`/workout-builder/${playlistId}`);
     }
-  };
+  }, [router, playlistId, player, deviceId]);
 
-  const currentTrack = tracks[currentTrackIndex];
+  // Update the BPM loading effect
+  useEffect(() => {
+    if (!currentTrack) return;
+
+    // Use TrackStorage.bpm.load instead of loadBPM
+    const storedBPM = TrackStorage.bpm.load(playlistId, currentTrack.id);
+    if (storedBPM) {
+      setTrackBPM({
+        tempo: Number(storedBPM.tempo),
+        isManual: storedBPM.isManual
+      });
+    } else {
+      // Set a default BPM if none is found
+      setTrackBPM({
+        tempo: 128,
+        isManual: false
+      });
+    }
+  }, [currentTrack, playlistId]);
+
+  // Add this new effect to handle position resets
+  useEffect(() => {
+    if (playbackState.isPlaying && playbackState.position > 0 && player) {
+      const checkPosition = async () => {
+        const state = await player.getCurrentState();
+        if (state && state.position > 1000) { // If position is more than 1 second in
+          await player.seek(0);
+          setPlaybackState(prev => ({
+            ...prev,
+            position: 0
+          }));
+        }
+      };
+      checkPosition();
+    }
+  }, [playbackState.isPlaying, player]);
+
+  // 3. Return your JSX
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
+  if (loading || !tracks.length || !currentTrack) {
+    return <LoadingState />;
+  }
 
   const jumpToNextSegment = async () => {
     console.log("[Jump] Starting jump to next segment");
@@ -823,7 +884,7 @@ export default function WorkoutPlayer({
       return;
     }
 
-    const accessToken = localStorage.getItem("spotify_access_token");
+    const accessToken = SpotifyAuthStorage.load();
     if (!accessToken) {
       console.log("[Jump] No access token");
       return;
@@ -861,150 +922,16 @@ export default function WorkoutPlayer({
     }
   };
 
-  const loadTrackData = (playlistId: string, trackId: string) => {
-    if (typeof window === "undefined") return { segments: [], bpm: null };
-
-    console.log("[loadTrackData] Loading data for track:", trackId);
-
-    // Load segments using new format
-    const segmentsStored = localStorage.getItem(
-      getStorageKey(playlistId, trackId, "segments")
-    );
-    const segments = segmentsStored ? JSON.parse(segmentsStored) : [];
-
-    // Load BPM using BPMStorage
-    const storedBPM = BPMStorage.load(playlistId, trackId);
-    console.log("[loadTrackData] Loaded BPM data:", storedBPM);
-
-    const bpmData = storedBPM ? { 
-      tempo: Number(storedBPM.bpm), // Ensure we're getting a number
-      isManual: storedBPM.source === 'manual' 
-    } : null;
-
-    console.log("[loadTrackData] Processed BPM data:", bpmData);
-
-    return {
-      segments,
-      bpm: bpmData,
-    };
-  };
-
-  useEffect(() => {
-    if (!currentTrack) return;
-
-    console.log("[Track Change] Loading data for track:", currentTrack.id);
-    const { segments, bpm } = loadTrackData(
-      resolvedParams.playlistId,
-      currentTrack.id
-    );
-    setSegments(segments);
-    
-    if (bpm) {
-      console.log("[Track Change] Setting BPM:", bpm);
-      setTrackBPM(bpm);
-    } else {
-      console.log("[Track Change] No BPM found, using default");
-      setTrackBPM({ tempo: 128, isManual: false });
-    }
-  }, [currentTrack, resolvedParams.playlistId]);
-
-  // Add this to your main component's state
-  const [currentTrackStartTime, setCurrentTrackStartTime] = useState(0);
-
-  // Update the currentTrackStartTime when track changes
-  useEffect(() => {
-    const startTime = tracks
-      .slice(0, currentTrackIndex)
-      .reduce((acc, track) => acc + track.duration_ms, 0);
-    setCurrentTrackStartTime(startTime);
-  }, [currentTrackIndex, tracks]);
-
-
-  // Update the playback state handling
-  useEffect(() => {
-    if (!player) return;
-
-    const handleStateChange = (state: any) => {
-      console.log("[Player State]", state);
-
-      if (!state) {
-        console.log("[Player State] No state received");
-        return;
-      }
-
-      // Update playback state
-      setPlaybackState((prev) => ({
-        ...prev,
-        isPlaying: !state.paused,
-        position: state.position,
-        duration: state.duration,
-        hasStarted: true,
-        track_window: {
-          current_track: {
-            id: state.track_window.current_track.id,
-          },
-        },
-      }));
-
-      // Only handle track ending if we're not already changing tracks
-      // and the track has actually finished (not just paused)
-      if (
-        state.paused &&
-        state.position === 0 &&
-        !isPlayingNextTrack.current &&
-        state.track_window?.previous_track
-      ) {
-        console.log("[Playback] Track ended naturally");
-        debouncedPlayNextTrack();
-      }
-    };
-
-    player.addListener("player_state_changed", handleStateChange);
-
-    return () => {
-      player.removeListener("player_state_changed", handleStateChange);
-    };
-  }, [player, debouncedPlayNextTrack]);
-
-  // Update the initial track play effect
-  useEffect(() => {
-    if (isPlayerReady && deviceId && tracks.length > 0) {
-      console.log("Player ready and tracks loaded, playing initial track");
-      // Add a small delay before initial playback
-      setTimeout(() => {
-        playTrack(tracks[currentTrackIndex].id).catch(error => {
-          console.error("Failed to play initial track:", error);
-        });
-      }, 1000);
-    }
-  }, [isPlayerReady, deviceId, tracks]);
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Error Loading Workout</h2>
-          <p className="text-gray-400">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading || !currentTrack) {
-    return <LoadingState />;
-  }
-
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Main content area */}
       <div className="flex-1 flex flex-col h-full">
-        {/* Back button and Timeline section - reduce padding */}
         <div className="flex-none bg-black/20 backdrop-blur-sm px-12 py-6 border-b border-white/10">
           <Button
             variant="ghost"
             size="sm"
             className="mb-4 hover:bg-white/10"
-            onClick={() => router.push(`/workout-builder/${resolvedParams.playlistId}`)}
+            onClick={handleBack}
           >
             <ArrowBackIcon className="w-4 h-4 mr-2" />
             Back to Playlist
@@ -1014,7 +941,7 @@ export default function WorkoutPlayer({
             <GlobalWorkoutTimeline
               tracks={tracks}
               segments={segments}
-              playlistId={resolvedParams.playlistId}
+              playlistId={playlistId}
               currentTrackIndex={currentTrackIndex}
               currentPosition={playbackState.position}
               currentTrackStartTime={currentTrackStartTime}
@@ -1022,48 +949,49 @@ export default function WorkoutPlayer({
           </div>
         </div>
 
-        {/* Track info header - make more compact */}
-        <div className="flex-none bg-black/20 backdrop-blur-sm px-12 py-6 border-b border-white/10">
-          <div className="flex items-center gap-8">
-            {/* Album art and track info */}
-            <div className="flex items-center gap-6 flex-1">
-              {currentTrack.album?.images?.[0] && (
-                <img
-                  src={currentTrack.album.images[0].url}
-                  alt={currentTrack.name}
-                  className="w-24 h-24 rounded"
-                />
-              )}
-              <div>
-                <h1 className="text-2xl font-bold mb-1">{currentTrack.name}</h1>
-                <p className="text-sm text-gray-400">
-                  {currentTrack.artists.map((a) => a.name).join(", ")}
-                </p>
-              </div>
-            </div>
-
-            {/* Workout types and BPM Display */}
-            <div className="flex items-center gap-6">
-              <div className="flex gap-4">
-                {getUniqueWorkoutTypes(segments).map((type) => (
-                  <WorkoutBadge key={type} type={type} />
-                ))}
-              </div>
-
-              <div className="flex flex-col items-center justify-center px-6 py-4 bg-white/5 rounded-lg">
-                <div className="text-4xl font-mono font-bold text-white/90 mb-1">
-                  {Math.round(trackBPM.tempo)}
+        {/* Track info and controls */}
+        <div className="flex-1 flex flex-col">
+          {/* Current track info */}
+          <div className="flex-none bg-black/20 backdrop-blur-sm px-12 py-6 border-b border-white/10">
+            <div className="flex items-center gap-8">
+              {/* Album art and track info */}
+              <div className="flex items-center gap-6 flex-1">
+                {currentTrack.album?.images?.[0] && (
+                  <img
+                    src={currentTrack.album.images[0].url}
+                    alt={currentTrack.name}
+                    className="w-24 h-24 rounded"
+                  />
+                )}
+                <div>
+                  <h1 className="text-2xl font-bold mb-1">{currentTrack.name}</h1>
+                  <p className="text-sm text-gray-400">
+                    {currentTrack.artists.map((a) => a.name).join(", ")}
+                  </p>
                 </div>
-                <div className="text-xs text-gray-400 uppercase tracking-wider">
-                  BPM
+              </div>
+
+              {/* Workout types and BPM Display */}
+              <div className="flex items-center gap-6">
+                <div className="flex gap-4">
+                  {getUniqueWorkoutTypes(segments).map((type) => (
+                    <WorkoutBadge key={type} type={type} />
+                  ))}
+                </div>
+
+                <div className="flex flex-col items-center justify-center px-6 py-4 bg-white/5 rounded-lg">
+                  <div className="text-4xl font-mono font-bold text-white/90 mb-1">
+                    {Math.round(trackBPM.tempo)}
+                  </div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">
+                    BPM
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Fixed workout display - reduce padding */}
-        {playbackState.isPlaying && (
+          {/* Workout display */}
           <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
             <div className="py-4 px-12">
               <div className="flex gap-4">
@@ -1089,73 +1017,73 @@ export default function WorkoutPlayer({
               </div>
             </div>
           </div>
-        )}
 
-        {/* Track progress and controls - adjust padding */}
-        <div className="flex-1 overflow-y-auto p-8">
-          {/* Track progress and segments timeline */}
-          <div className="flex-none bg-black/20 p-6 rounded-lg">
-            <SegmentTimeline
-              segments={segments}
-              duration={currentTrack.duration_ms}
-              position={playbackState.position}
-              isPlaying={playbackState.isPlaying}
-              showBeats={true}
-              bpm={trackBPM.tempo}
-            />
-          </div>
+          {/* Track progress and controls */}
+          <div className="flex-1 overflow-y-auto p-8">
+            {/* Track progress timeline */}
+            <div className="flex-none bg-black/20 p-6 rounded-lg">
+              <SegmentTimeline
+                segments={segments}
+                duration={currentTrack.duration_ms}
+                position={playbackState.position}
+                isPlaying={playbackState.isPlaying}
+                showBeats={true}
+                bpm={trackBPM.tempo}
+              />
+            </div>
 
-          {/* Playback controls - increase margin and gap */}
-          <div className="flex justify-center items-center gap-6 mt-12">
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={playPreviousTrack}
-              disabled={currentTrackIndex === 0}
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-            >
-              <SkipPreviousIcon className="w-6 h-6" />
-            </Button>
+            {/* Playback controls */}
+            <div className="flex justify-center items-center gap-6 mt-12">
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={playPreviousTrack}
+                disabled={currentTrackIndex === 0}
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+              >
+                <SkipPreviousIcon className="w-6 h-6" />
+              </Button>
 
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={togglePlayback}
-              className="w-16 h-16 rounded-full flex items-center justify-center"
-            >
-              {playbackState.isPlaying ? (
-                <PauseIcon className="w-8 h-8" />
-              ) : (
-                <PlayArrowIcon className="w-8 h-8" />
-              )}
-            </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={togglePlayback}
+                className="w-16 h-16 rounded-full flex items-center justify-center"
+              >
+                {playbackState.isPlaying ? (
+                  <PauseIcon className="w-8 h-8" />
+                ) : (
+                  <PlayArrowIcon className="w-8 h-8" />
+                )}
+              </Button>
 
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={debouncedPlayNextTrack}
-              disabled={currentTrackIndex === tracks.length - 1}
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-            >
-              <SkipNextIcon className="w-6 h-6" />
-            </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={playNextTrack}
+                disabled={currentTrackIndex === tracks.length - 1}
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+              >
+                <SkipNextIcon className="w-6 h-6" />
+              </Button>
 
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={jumpToNextSegment}
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-            >
-              <FastForwardIcon className="w-6 h-6" />
-            </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={jumpToNextSegment}
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+              >
+                <FastForwardIcon className="w-6 h-6" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Vertical separator - make it more visible */}
+      {/* Vertical separator */}
       <div className="w-px bg-white/20" />
 
-      {/* Track list sidebar - increase padding and spacing */}
+      {/* Track list sidebar - keep this one */}
       <div className="w-[450px] flex-none bg-black/20 backdrop-blur-sm overflow-hidden flex flex-col">
         <div className="p-6 border-b border-white/10">
           <h2 className="text-lg font-semibold">Current & Up Next</h2>
@@ -1166,15 +1094,10 @@ export default function WorkoutPlayer({
               const actualIndex = currentTrackIndex + index;
               const uniqueTrackKey = `${track.id}-position-${actualIndex}`;
 
-              const storedBPM = BPMStorage.load(resolvedParams.playlistId, track.id);
-              const trackBPMData = storedBPM?.bpm ? Number(storedBPM.bpm) : null;
+              const storedBPM = TrackStorage.bpm.load(playlistId, track.id);
+              const trackBPMData = storedBPM?.tempo ?? null;
 
-              const trackSegments = JSON.parse(
-                localStorage.getItem(
-                  getStorageKey(resolvedParams.playlistId, track.id, "segments")
-                ) || "[]"
-              );
-
+              const trackSegments = TrackStorage.segments.load(playlistId, track.id);
               const trackWorkoutTypes = Array.from(
                 new Set(trackSegments.map((s: Segment) => s.type))
               );
@@ -1183,9 +1106,7 @@ export default function WorkoutPlayer({
                 <div
                   key={uniqueTrackKey}
                   className={`flex flex-col p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
-                      ${
-                        actualIndex === currentTrackIndex ? "bg-white/10" : ""
-                      }`}
+                      ${actualIndex === currentTrackIndex ? "bg-white/10" : ""}`}
                   onClick={() => {
                     setCurrentTrackIndex(actualIndex);
                     playTrack(track.id);
@@ -1202,7 +1123,6 @@ export default function WorkoutPlayer({
                   </div>
 
                   <div className="mt-2 flex items-center justify-between gap-4">
-                    {/* Workout type badges */}
                     {trackWorkoutTypes.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {trackWorkoutTypes.map((type: WorkoutType, index) => (
@@ -1220,9 +1140,7 @@ export default function WorkoutPlayer({
                       </div>
                       <div>
                         {Math.floor(track.duration_ms / 60000)}:
-                        {String(
-                          Math.floor((track.duration_ms % 60000) / 1000)
-                        ).padStart(2, "0")}
+                        {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
                       </div>
                     </div>
                   </div>
