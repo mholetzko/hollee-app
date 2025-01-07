@@ -1,5 +1,6 @@
 import React from 'react';
-import { Segment, WORKOUT_LABELS } from '../workout-builder/[playlistId]/types';
+import { Segment } from '../workout-builder/[playlistId]/types';
+import { WORKOUT_LABELS } from '../workout-builder/[playlistId]/constants';
 
 interface BeatCountdownProps {
   currentPosition: number;

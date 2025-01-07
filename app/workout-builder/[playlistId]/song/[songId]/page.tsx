@@ -18,6 +18,8 @@ import { BPMVisualization } from "../../components/BPMVisualization";
 import { WorkoutDisplay } from "../../components/WorkoutDisplay";
 import { getIntensityColor } from '../../utils';
 import { WORKOUT_LABELS, SEGMENT_COLORS } from '../../constants';
+import { BeatCountdown } from '../../components/BeatCountdown';
+import { TransportControls } from '../../components/TransportControls';
 
 // Add type for Spotify Player
 declare global {
@@ -135,264 +137,6 @@ const useMetronomeSound = () => {
   return {
     play: () => audioRef.current?.play(),
   };
-};
-
-// Update the BeatCountdown component
-const BeatCountdown = ({ 
-  currentPosition, 
-  nextSegmentStart, 
-  bpm,
-  nextSegment,
-}: {
-  currentPosition: number;
-  nextSegmentStart: number;
-  bpm: number;
-  nextSegment?: Segment;
-}) => {
-  const { play } = useMetronomeSound();
-  const [smoothPosition, setSmoothPosition] = useState(currentPosition);
-  const lastUpdateTime = useRef(Date.now());
-  const animationFrameRef = useRef<number | null>(null);
-  
-  // Smooth position update using requestAnimationFrame
-  useEffect(() => {
-    const updatePosition = () => {
-      const now = Date.now();
-      const delta = now - lastUpdateTime.current;
-      lastUpdateTime.current = now;
-
-      setSmoothPosition((prev) => {
-        const newPosition = prev + delta;
-        // Reset if we're too far off from the actual position
-        if (Math.abs(newPosition - currentPosition) > 1000) {
-          return currentPosition;
-        }
-        return newPosition;
-      });
-      
-      animationFrameRef.current = requestAnimationFrame(updatePosition);
-    };
-    
-    animationFrameRef.current = requestAnimationFrame(updatePosition);
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [currentPosition]);
-
-  const beatDuration = 60000 / bpm;
-  const currentBeat = Math.floor(smoothPosition / beatDuration);
-  const nextSegmentBeat = Math.floor(nextSegmentStart / beatDuration);
-  const beatsUntilNext = nextSegmentBeat - currentBeat;
-  
-  // Play click on each beat change
-  const lastBeatRef = useRef(currentBeat);
-  useEffect(() => {
-    if (currentBeat !== lastBeatRef.current) {
-      play();
-      lastBeatRef.current = currentBeat;
-    }
-  }, [currentBeat, play]);
-
-  return (
-    <div className="flex-1 max-w-[300px] bg-white/10 rounded-lg p-6 flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Animated background rings */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div 
-          className={`absolute w-64 h-64 rounded-full border-4 opacity-20
-            ${
-              beatsUntilNext <= 4
-                ? "border-yellow-400"
-                : beatsUntilNext <= 8
-                ? "border-orange-400"
-                : "border-white"
-            }
-            animate-ping-slow
-          `}
-        />
-        <div 
-          className={`absolute w-48 h-48 rounded-full border-2 opacity-30
-            ${
-              beatsUntilNext <= 4
-                ? "border-yellow-400"
-                : beatsUntilNext <= 8
-                ? "border-orange-400"
-                : "border-white"
-            }
-            animate-spin-slow
-          `}
-        />
-      </div>
-
-      {/* Beat pulse animation */}
-      <div 
-        className="absolute inset-0 bg-white/5"
-        style={{
-          animation: "beatPulse 60s linear infinite",
-          animationDuration: `${beatDuration}ms`,
-        }}
-      />
-
-      {/* Content */}
-      <div className="relative text-center z-10">
-        <div 
-          className={`text-8xl font-bold font-mono mb-2
-            ${
-              beatsUntilNext <= 4
-                ? "text-yellow-400 scale-pulse"
-                : beatsUntilNext <= 8
-                ? "text-orange-400"
-                : "text-white"
-            }
-            transition-all duration-300
-          `}
-        >
-          {beatsUntilNext}
-        </div>
-        <div className="text-xl text-gray-400 mb-4">
-          {formatDuration(nextSegmentStart - currentPosition)} left
-        </div>
-        {nextSegment && (
-          <div 
-            className={`text-lg ${
-              SEGMENT_COLORS[nextSegment.type]
-            } px-3 py-1 rounded-full
-              backdrop-blur-sm bg-opacity-50 shadow-glow
-            `}
-          >
-            Next: {WORKOUT_LABELS[nextSegment.type]}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Update the TransportControls component
-const TransportControls = ({
-  isPlaying,
-  position,
-  duration,
-  onPlay,
-  onStop,
-  onSeek,
-  isReady,
-}: {
-  isPlaying: boolean;
-  position: number;
-  duration: number;
-  onPlay: () => void;
-  onStop: () => void;
-  onSeek: (position: number) => void;
-  isReady: boolean;
-}) => {
-  // Add dragging state for the progress bar
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragPosition, setDragPosition] = useState(position);
-  const progressRef = useRef<HTMLDivElement>(null);
-
-  const handleStartDrag = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    const rect = progressRef.current?.getBoundingClientRect();
-    if (rect) {
-      const percent = (e.clientX - rect.left) / rect.width;
-      setDragPosition(percent * duration);
-    }
-  };
-
-  const handleDrag = useCallback((e: MouseEvent) => {
-    if (!isDragging || !progressRef.current) return;
-    const rect = progressRef.current.getBoundingClientRect();
-    const percent = Math.max(
-      0,
-      Math.min(1, (e.clientX - rect.left) / rect.width)
-    );
-    setDragPosition(percent * duration);
-  }, [isDragging, duration, progressRef]);
-
-  const handleEndDrag = useCallback(() => {
-    if (isDragging) {
-      onSeek(dragPosition);
-      setIsDragging(false);
-    }
-  }, [isDragging, dragPosition, onSeek]);
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener("mousemove", handleDrag);
-      window.addEventListener("mouseup", handleEndDrag);
-      return () => {
-        window.removeEventListener("mousemove", handleDrag);
-        window.removeEventListener("mouseup", handleEndDrag);
-      };
-    }
-  }, [isDragging, handleDrag, handleEndDrag]);
-
-  // Update dragPosition when not dragging
-  useEffect(() => {
-    if (!isDragging) {
-      setDragPosition(position);
-    }
-  }, [position]);
-
-  return (
-    <div className="flex items-center gap-4 bg-black/20 p-4 rounded-lg">
-      <div className="flex gap-2">
-        <Button
-          size="icon"
-          variant="secondary"
-          className="rounded-full w-10 h-10"
-          onClick={onPlay}
-          disabled={!isReady}
-        >
-          {!isReady ? (
-            <div className="animate-spin h-4 w-4 border-2 border-white/50 rounded-full border-t-transparent" />
-          ) : isPlaying ? (
-            <PauseIcon className="w-5 h-5" />
-          ) : (
-            <PlayIcon className="w-5 h-5" />
-          )}
-        </Button>
-        <Button
-          size="icon"
-          variant="secondary"
-          className="rounded-full w-10 h-10"
-          onClick={onStop}
-          disabled={!isReady}
-        >
-          <StopIcon className="w-5 h-5" />
-        </Button>
-      </div>
-
-      <div className="flex-1 flex items-center gap-2">
-        <div className="text-sm font-mono">
-          {formatDuration(isDragging ? dragPosition : position)}
-        </div>
-        <div 
-          ref={progressRef}
-          className="flex-1 h-2 bg-white/10 rounded-full cursor-pointer group"
-          onMouseDown={handleStartDrag}
-        >
-          <div 
-            className="h-full bg-white/50 rounded-full relative"
-            style={{
-              width: `${
-                ((isDragging ? dragPosition : position) / duration) * 100
-              }%`,
-            }}
-          >
-            <div
-              className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full 
-              opacity-0 group-hover:opacity-100 transition-opacity" 
-            />
-          </div>
-        </div>
-        <div className="text-sm font-mono">{formatDuration(duration)}</div>
-        </div>
-      </div>
-  );
 };
 
 // Add a helper function to find adjacent segments
@@ -852,7 +596,101 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       try {
         setIsInitializing(true);
         console.log("[Player Init] Starting initialization");
-        
+
+        // Set up the callback before loading the script
+        window.onSpotifyWebPlaybackSDKReady = () => {
+          console.log("[Player Init] SDK Ready");
+          if (!window.Spotify || player) return;
+
+          const token = SpotifyAuthStorage.load();
+          if (!token) {
+            router.push("/");
+            return;
+          }
+
+          const newPlayer = new window.Spotify.Player({
+            name: 'Workout Builder Web Player',
+            getOAuthToken: cb => cb(token),
+          });
+
+          // Add all event listeners
+          newPlayer.addListener('initialization_error', ({ message }) => {
+            console.error("[Player Error] Initialization failed:", message);
+            setIsInitializing(false);
+            initAttempts.current++;
+          });
+
+          newPlayer.addListener('authentication_error', ({ message }) => {
+            console.error("[Player Error] Authentication failed:", message);
+            setIsInitializing(false);
+            router.push("/");
+          });
+
+          newPlayer.addListener('ready', ({ device_id }) => {
+            console.log("[Player Init] Ready with device ID:", device_id);
+            setDeviceId(device_id);
+            setIsPlayerReady(true);
+            setIsInitializing(false);
+          });
+
+          newPlayer.addListener('not_ready', ({ device_id }) => {
+            console.log("[Player Warning] Device ID has gone offline:", device_id);
+            setIsPlayerReady(false);
+          });
+
+          newPlayer.addListener('player_state_changed', (state: any) => {
+            if (!state) return;
+
+            console.log("[Player State] State changed:", state);
+            setPlaybackState((prev) => {
+              const newPosition = state.position;
+              const startTime = Date.now() - newPosition;
+
+              // Clear existing interval
+              if (progressInterval.current) {
+                clearInterval(progressInterval.current);
+                progressInterval.current = null;
+              }
+
+              // Set up new interval if playing
+              if (!state.paused) {
+                progressInterval.current = setInterval(() => {
+                  const position = Date.now() - startTime;
+                  if (position <= state.duration) {
+                    setPlaybackState(prev => ({
+                      ...prev,
+                      position: position,
+                    }));
+                  }
+                }, 50);
+              }
+
+              return {
+                ...prev,
+                isPlaying: !state.paused,
+                position: newPosition,
+                duration: state.duration,
+                hasStarted: true,
+                track_window: {
+                  current_track: {
+                    id: state.track_window?.current_track?.id,
+                  },
+                },
+              };
+            });
+          });
+
+          newPlayer.connect().then(() => {
+            console.log("[Player Init] Connected successfully");
+            setPlayer(newPlayer);
+          }).catch(error => {
+            console.error("[Player Init] Connection failed:", error);
+            setIsInitializing(false);
+            initAttempts.current++;
+          });
+        };
+
+        // Only load the script if it's not already loaded
         if (!window.Spotify && !isScriptLoaded) {
           const script = document.createElement("script");
           script.src = "https://sdk.scdn.co/spotify-player.js";
@@ -864,127 +702,10 @@ export default function SongSegmentEditor({ params }: { params: any }) {
           };
 
           document.body.appendChild(script);
-          return;
+        } else if (window.Spotify) {
+          // If Spotify is already available, trigger the callback manually
+          window.onSpotifyWebPlaybackSDKReady();
         }
-
-        if (!window.Spotify || player) return;
-
-        const token = SpotifyAuthStorage.load();
-        if (!token) {
-          router.push("/");
-          return;
-        }
-
-        const newPlayer = new window.Spotify.Player({
-          name: 'Workout Builder Web Player',
-          getOAuthToken: cb => cb(token),
-        });
-
-        // Error handling
-        newPlayer.addListener('initialization_error', ({ message }) => {
-          console.error("[Player Error] Initialization failed:", message);
-          setIsInitializing(false);
-          initAttempts.current++;
-        });
-
-        newPlayer.addListener('authentication_error', ({ message }) => {
-          console.error("[Player Error] Authentication failed:", message);
-          setIsInitializing(false);
-          router.push("/");
-        });
-
-        newPlayer.addListener('ready', ({ device_id }) => {
-          console.log("[Player Init] Ready with device ID:", device_id);
-          setDeviceId(device_id);
-          setIsPlayerReady(true);
-          setIsInitializing(false);
-        });
-
-        newPlayer.addListener('not_ready', ({ device_id }) => {
-          console.log("[Player Warning] Device ID has gone offline:", device_id);
-          setIsPlayerReady(false);
-        });
-
-        newPlayer.addListener('player_state_changed', (state: any) => {
-          if (!state) {
-            console.log("[Player State] Received empty state");
-            return;
-          }
-
-          console.log("[Player State] State changed:", {
-            position: state.position,
-            duration: state.duration,
-            paused: state.paused,
-            timestamp: Date.now()
-          });
-
-          // Update playback state
-          setPlaybackState((prev) => {
-            const newPosition = state.position;
-            const startTime = Date.now() - newPosition;
-
-            console.log("[Position Update] Calculating new position:", {
-              newPosition,
-              startTime,
-              currentInterval: progressInterval.current ? "exists" : "none"
-            });
-
-            // Clear existing interval
-            if (progressInterval.current) {
-              console.log("[Interval] Clearing existing interval");
-              clearInterval(progressInterval.current);
-              progressInterval.current = null;
-            }
-
-            // Set up new interval if playing
-            if (!state.paused) {
-              console.log("[Interval] Setting up new interval for playing state");
-              progressInterval.current = setInterval(() => {
-                const position = Date.now() - startTime;
-                console.log("[Interval] Updating position:", {
-                  position,
-                  duration: state.duration,
-                  timestamp: Date.now()
-                });
-
-                if (position <= state.duration) {
-                  setPlaybackState(prev => ({
-                    ...prev,
-                    position: position,
-                  }));
-                } else {
-                  console.log("[Interval] Position exceeded duration, stopping interval");
-                  if (progressInterval.current) {
-                    clearInterval(progressInterval.current);
-                    progressInterval.current = null;
-                  }
-                }
-              }, 50); // Update every 50ms for smoother progress
-            } else {
-              console.log("[Player State] Track is paused, not setting up interval");
-            }
-
-            const newState = {
-              ...prev,
-              isPlaying: !state.paused,
-              position: newPosition,
-              duration: state.duration,
-              hasStarted: true,
-              track_window: {
-                current_track: {
-                  id: state.track_window?.current_track?.id,
-                },
-              },
-            };
-
-            console.log("[Player State] New state:", newState);
-            return newState;
-          });
-        });
-
-        await newPlayer.connect();
-        setPlayer(newPlayer);
-        console.log("[Player Init] Connected successfully");
 
       } catch (error) {
         console.error("[Player Init] Error during initialization:", error);
