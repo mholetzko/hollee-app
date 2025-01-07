@@ -8,7 +8,8 @@ import {
   PlusIcon, 
   ScissorsIcon,
   ChevronLeftIcon,
-  ChevronRightIcon 
+  ChevronRightIcon,
+  RowSpacingIcon
 } from "@radix-ui/react-icons";
 import { Button } from '@/components/ui/button';
 
@@ -24,6 +25,8 @@ interface TransportControlsProps {
   onSplitSegment: () => void;
   isReady: boolean;
   canSplit: boolean;
+  onMergeSegment: () => void;
+  canMerge: boolean;
 }
 
 export const TransportControls: React.FC<TransportControlsProps> = ({
@@ -38,6 +41,8 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
   onSplitSegment,
   isReady,
   canSplit,
+  onMergeSegment,
+  canMerge,
 }) => {
   const formatTime = (ms: number): string => {
     const minutes = Math.floor(ms / 60000);
@@ -118,6 +123,16 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
         >
           <ScissorsIcon className="w-4 h-4" />
           Split
+        </Button>
+        <Button
+          onClick={onMergeSegment}
+          disabled={!canMerge}
+          size="sm"
+          variant="ghost"
+          className="flex items-center gap-1"
+        >
+          <RowSpacingIcon className="w-4 h-4" />
+          Merge
         </Button>
         <Button
           onClick={onAddSegment}

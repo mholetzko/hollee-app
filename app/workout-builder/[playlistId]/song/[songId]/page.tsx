@@ -1014,6 +1014,37 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     }
   }, [segments, playbackState.position, handleSeek]);
 
+  // Move this before all the handlers that need currentSegment
+  const { currentSegment, nextSegment } = getCurrentAndNextSegment(
+    playbackState.position,
+    segments
+  );
+
+  // Add merge handler
+  const handleMergeSegment = useCallback(() => {
+    if (!currentSegment) return;
+
+    // Find the next segment
+    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime);
+    const currentIndex = sortedSegments.findIndex(s => s.id === currentSegment.id);
+    const nextSegment = sortedSegments[currentIndex + 1];
+
+    if (!nextSegment) return;
+
+    // Create merged segment
+    const mergedSegment: Segment = {
+      ...currentSegment,
+      endTime: nextSegment.endTime,
+      title: `${currentSegment.title} + ${nextSegment.title}`,
+    };
+
+    // Update segments list
+    setSegments(prev => [
+      ...prev.filter(s => s.id !== currentSegment.id && s.id !== nextSegment.id),
+      mergedSegment
+    ]);
+  }, [currentSegment, segments]);
+
   if (loading || !track) {
     return (
       <LoadingState
@@ -1022,12 +1053,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       />
     );
   }
-
-  // Add this before the return statement to calculate current and next segments
-  const { currentSegment, nextSegment } = getCurrentAndNextSegment(
-    playbackState.position,
-    segments
-  );
 
   return (
     <div className="h-screen flex flex-col bg-black text-white">
@@ -1108,11 +1133,15 @@ export default function SongSegmentEditor({ params }: { params: any }) {
               onPreviousSegment={handlePreviousSegment}
               onAddSegment={addSegment}
               onSplitSegment={splitSegmentAtCurrentPosition}
+              onMergeSegment={handleMergeSegment}
               isReady={isPlayerReady}
               canSplit={!!playbackState.position && segments.some(
                 segment => 
                   playbackState.position >= segment.startTime && 
                   playbackState.position < segment.endTime
+              )}
+              canMerge={!!currentSegment && segments.some(s => 
+                s.startTime === currentSegment.endTime
               )}
             />
           </div>
