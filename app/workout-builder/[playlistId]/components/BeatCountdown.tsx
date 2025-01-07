@@ -47,14 +47,6 @@ class AudioPool {
   }
 }
 
-const easeOutExpo = (x: number): number => {
-  return x === 1 ? 1 : 1 - Math.pow(2, -10 * x)
-}
-
-const easeInOutQuad = (x: number): number => {
-  return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2
-}
-
 export function BeatCountdown({ 
   currentPosition, 
   nextSegmentStart, 

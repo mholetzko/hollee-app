@@ -869,7 +869,7 @@ export default function WorkoutPlayer({
 
     const beatDuration = 60000 / trackBPM.tempo;
     const checkInterval = setInterval(() => {
-      const { currentSegment, nextSegment } = getCurrentAndNextSegment(
+      const { nextSegment } = getCurrentAndNextSegment(
         playbackState.position,
         segments
       );

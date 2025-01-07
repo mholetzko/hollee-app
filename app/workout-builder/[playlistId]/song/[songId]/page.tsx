@@ -4,14 +4,12 @@
 
 import { useEffect, useState, useRef, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from '@/components/ui/button';
 import { TrackStorage } from '../../../../utils/storage/TrackStorage';
 import { SpotifyAuthStorage } from '../../../../utils/storage/SpotifyAuthStorage';
 import { BPMVisualization } from "../../components/BPMVisualization";
 import { WorkoutDisplay } from "../../components/WorkoutDisplay";
 import { BeatCountdown } from '../../components/BeatCountdown';
 import { TransportControls } from '../../components/TransportControls';
-import { SongHeader } from '../../components/SongHeader';
 import { Timeline } from '../../components/Timeline';
 import { SegmentEditor } from '../../components/SegmentEditor';
 import { TrackBPM } from "../../types";
@@ -108,21 +106,6 @@ const getBPMFromSources = async (track: Track, playlistId: string): Promise<Song
     songId: track.id,
     bpm: defaultBPM,
     source: "manual"
-  };
-};
-
-// Add a helper function to find adjacent segments
-const findAdjacentSegments = (segments: Segment[], currentId: string) => {
-  const sortedSegments = segments
-    .filter((s) => s.id !== currentId)
-    .sort((a, b) => a.startTime - b.startTime);
-
-  const currentIndex = segments.findIndex((s) => s.id === currentId);
-  const current = segments[currentIndex];
-
-  return {
-    prev: sortedSegments.filter((s) => s.endTime <= current.startTime).pop(),
-    next: sortedSegments.filter((s) => s.startTime >= current.endTime).shift(),
   };
 };
 
@@ -858,12 +841,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
 
     fetchBPM();
   }, [track?.id, resolvedParams.playlistId]); // Use track.id instead of whole track object
-
-  // Add intensity label function
-  const getIntensityLabel = (intensity: number) => {
-    if (intensity === -1) return "BURN";
-    return `${intensity}%`;
-  };
 
   useEffect(() => {
     if (isIOS() || isSafari()) {
