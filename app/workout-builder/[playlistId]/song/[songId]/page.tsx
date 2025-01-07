@@ -751,51 +751,11 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     [player, isPlayerReady, track?.duration_ms]
   );
 
-  const handleDragMove = useCallback(
-    (e: MouseEvent) => {
-      if (!dragState.segmentId || !timelineRef.current || !track) return;
-
-      const rect = timelineRef.current.getBoundingClientRect();
-      const deltaX = e.clientX - dragState.initialX;
-      const deltaTime = (deltaX / rect.width) * track.duration_ms;
-      const segment = segments.find((s) => s.id === dragState.segmentId);
-
-      if (!segment) return;
-
-      let updatedTime = dragState.initialTime + deltaTime;
-      const { prev, next } = findAdjacentSegments(segments, segment.id);
-
-      if (dragState.type === "start") {
-        const minTime = prev ? prev.endTime : 0;
-        const maxTime = segment.endTime - 1000;
-        updatedTime = Math.max(minTime, Math.min(maxTime, updatedTime));
-
-        setSegments((prev) =>
-          prev.map((s) =>
-            s.id === segment.id ? { ...s, startTime: updatedTime } : s
-          )
-        );
-    } else {
-        const minTime = segment.startTime + 1000;
-        const maxTime = next ? next.startTime : track.duration_ms;
-        updatedTime = Math.max(minTime, Math.min(maxTime, updatedTime));
-
-        setSegments((prev) =>
-          prev.map((s) =>
-            s.id === segment.id ? { ...s, endTime: updatedTime } : s
-          )
-        );
-      }
-    },
-    [dragState, segments, track]
-  );
-
   const handleDragStart = (
     e: React.MouseEvent,
     segmentId: string,
     type: "start" | "end"
   ) => {
-    e.preventDefault();
     const segment = segments.find((s) => s.id === segmentId);
     if (!segment) return;
 
@@ -807,36 +767,78 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     });
   };
 
-  // Update the drag effect dependencies
-  useEffect(() => {
-    if (!dragState.segmentId || !track) {
-      console.log("Drag effect not running:", { dragState, hasTrack: !!track });
-      return;
-    }
+  const handleDragMove = useCallback(
+    (e: MouseEvent) => {
+      if (!dragState.segmentId || !track || !timelineRef.current) return;
 
-    console.log("Setting up drag effect listeners");
+      const segment = segments.find((s) => s.id === dragState.segmentId);
+      if (!segment) return;
+
+      const timelineRect = timelineRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - dragState.initialX;
+      const msPerPixel = track.duration_ms / timelineRect.width;
+      const deltaTime = deltaX * msPerPixel;
+
+      let updatedTime = Math.max(0, Math.min(track.duration_ms, dragState.initialTime + deltaTime));
+
+      // Find adjacent segments for bounds checking
+      const sortedSegments = segments
+        .filter(s => s.id !== segment.id)
+        .sort((a, b) => a.startTime - b.startTime);
+
+      const prevSegment = sortedSegments.filter(s => s.endTime <= segment.startTime).pop();
+      const nextSegment = sortedSegments.filter(s => s.startTime >= segment.endTime).shift();
+
+      if (dragState.type === "start") {
+        // When dragging start, ensure we don't overlap with previous segment
+        // and maintain minimum segment duration
+        const minTime = prevSegment ? prevSegment.endTime : 0;
+        const maxTime = segment.endTime - 1000; // Minimum 1 second duration
+        updatedTime = Math.max(minTime, Math.min(maxTime, updatedTime));
+
+        setSegments(prev =>
+          prev.map(s =>
+            s.id === segment.id ? { ...s, startTime: updatedTime } : s
+          )
+        );
+      } else {
+        // When dragging end, ensure we don't overlap with next segment
+        // and maintain minimum segment duration
+        const minTime = segment.startTime + 1000; // Minimum 1 second duration
+        const maxTime = nextSegment ? nextSegment.startTime : track.duration_ms;
+        updatedTime = Math.max(minTime, Math.min(maxTime, updatedTime));
+
+        setSegments(prev =>
+          prev.map(s =>
+            s.id === segment.id ? { ...s, endTime: updatedTime } : s
+          )
+        );
+      }
+    },
+    [dragState, segments, track, timelineRef]
+  );
+
+  // Add drag cleanup
+  useEffect(() => {
+    if (!dragState.segmentId) return;
 
     const handleMouseUp = () => {
-      console.log("Mouse up from effect");
       setDragState({
         segmentId: null,
         type: null,
         initialX: 0,
         initialTime: 0,
       });
-      window.removeEventListener("mousemove", handleDragMove);
-      window.removeEventListener("mouseup", handleMouseUp);
     };
 
-    window.addEventListener("mousemove", handleDragMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleMouseUp);
 
     return () => {
-      console.log("Cleaning up drag effect listeners");
-      window.removeEventListener("mousemove", handleDragMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState.segmentId, handleDragMove]); // Remove track from dependencies since it's not directly used
+  }, [dragState.segmentId, handleDragMove]);
 
   // Update the BPM extraction effect
   useEffect(() => {
@@ -1035,14 +1037,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                     isReady={isPlayerReady}
                   />
 
-                  {/* Timeline controls */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <h2 className="text-xl font-semibold">Segments</h2>
-                    </div>
-                    <Button onClick={addSegment}>Add Segment</Button>
-                  </div>
-
                   {/* BPM visualization */}
                   {trackBPM && (
                     <BPMVisualization 
@@ -1053,7 +1047,19 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                     />
                   )}
 
+                  {/* Section header with Add Segment button */}
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold">Workout Segments</h2>
+                    <Button 
+                      onClick={addSegment}
+                      className="bg-white/10 hover:bg-white/20"
+                    >
+                      Add Segment
+                    </Button>
+                  </div>
+
                   <Timeline
+                    ref={timelineRef}
                     segments={segments}
                     track={track}
                     playbackState={playbackState}

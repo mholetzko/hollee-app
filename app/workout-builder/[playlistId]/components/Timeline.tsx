@@ -1,8 +1,7 @@
-import { useRef } from 'react';
-import { Segment, Track } from '../types';
+import { forwardRef } from 'react';
+import { Segment, Track, PlaybackState, TrackBPM } from '../types';
 import { WORKOUT_LABELS } from '../constants';
 import { getIntensityColor } from '../utils';
-import { TimelineSegment } from './TimelineSegment';
 
 interface TimelineProps {
   segments: Segment[];
@@ -13,20 +12,18 @@ interface TimelineProps {
   formatDuration: (ms: number) => string;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({
+export const Timeline = forwardRef<HTMLDivElement, TimelineProps>(({
   segments,
   track,
   playbackState,
   trackBPM,
   onDragStart,
   formatDuration,
-}) => {
-  const timelineRef = useRef<HTMLDivElement>(null);
-
+}, ref) => {
   return (
     <div 
-      ref={timelineRef}
-      className="relative h-32 bg-white/10 rounded"
+      ref={ref}
+      className="relative h-32 bg-white/10 rounded overflow-hidden"
     >
       {/* Progress bar */}
       <div 
@@ -70,15 +67,60 @@ export const Timeline: React.FC<TimelineProps> = ({
       {segments
         .sort((a, b) => a.startTime - b.startTime)
         .map((segment) => (
-          <TimelineSegment
+          <div
             key={segment.id}
-            segment={segment}
-            track={track}
-            playbackState={playbackState}
-            onDragStart={onDragStart}
-            formatDuration={formatDuration}
-          />
+            className={`absolute h-full group transition-all duration-300
+              ${getIntensityColor(segment.intensity)}
+              ${playbackState.position >= segment.startTime && 
+                playbackState.position < segment.endTime
+                ? "ring-2 ring-white ring-offset-2 ring-offset-black/50 z-10"
+                : ""
+              }`}
+            style={{
+              left: `${(segment.startTime / track.duration_ms) * 100}%`,
+              width: `${((segment.endTime - segment.startTime) / track.duration_ms) * 100}%`,
+            }}
+          >
+            {/* Drag handles */}
+            <div 
+              className="absolute left-0 top-0 bottom-0 w-2 bg-white/20 cursor-ew-resize 
+                hover:bg-white/60 group-hover:bg-white/40 transition-colors"
+              onMouseDown={(e) => onDragStart(e, segment.id, "start")}
+            >
+              <div className="h-8 w-1 bg-white/60 rounded hidden group-hover:block 
+                absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2" />
+            </div>
+            <div 
+              className="absolute right-0 top-0 bottom-0 w-2 bg-white/20 cursor-ew-resize 
+                hover:bg-white/60 group-hover:bg-white/40 transition-colors"
+              onMouseDown={(e) => onDragStart(e, segment.id, "end")}
+            >
+              <div className="h-8 w-1 bg-white/60 rounded hidden group-hover:block 
+                absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2" />
+            </div>
+
+            {/* Segment content */}
+            <div className="p-2 text-xs">
+              <div className="font-medium truncate">
+                {segment.title}
+              </div>
+              <div className="opacity-75">
+                {WORKOUT_LABELS[segment.type]} •{" "}
+                {segment.intensity === -1 ? "BURN" : `${segment.intensity}%`}
+              </div>
+              <div>
+                {formatDuration(segment.startTime)} -{" "}
+                {formatDuration(segment.endTime)}
+              </div>
+              <div>
+                Duration:{" "}
+                {formatDuration(segment.endTime - segment.startTime)}
+              </div>
+            </div>
+          </div>
         ))}
     </div>
   );
-}; 
+});
+
+Timeline.displayName = 'Timeline'; 
