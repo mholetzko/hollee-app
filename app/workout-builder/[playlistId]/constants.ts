@@ -22,7 +22,7 @@ export const SEGMENT_COLORS_HOVER: Record<WorkoutType, string> = {
   PUSHES: 'hover:bg-indigo-500/70',
 } as const
 
-export const WORKOUT_LABELS: Record<WorkoutType, string> = {
+export const WORKOUT_LABELS: Record<string, string> = {
   PLS: 'PLS',
   SEATED_ROAD: 'SeRo',
   SEATED_CLIMB: 'SeCl',

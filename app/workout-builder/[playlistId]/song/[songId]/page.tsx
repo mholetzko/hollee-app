@@ -15,6 +15,9 @@ import { TrackStorage } from '../../../../utils/storage/TrackStorage';
 import { SpotifyAuthStorage } from '../../../../utils/storage/SpotifyAuthStorage';
 import Image from 'next/image';
 import { BPMVisualization } from "../../components/BPMVisualization";
+import { WorkoutDisplay } from "../../components/WorkoutDisplay";
+import { getIntensityColor } from '../../utils';
+import { WORKOUT_LABELS, SEGMENT_COLORS } from '../../constants';
 
 // Add type for Spotify Player
 declare global {
@@ -65,30 +68,6 @@ interface DragState {
   initialTime: number;
 }
 
-// Update segment colors
-const SEGMENT_COLORS = {
-  PLS: "bg-purple-500/50",
-  SEATED_ROAD: "bg-blue-500/50",
-  SEATED_CLIMB: "bg-green-500/50",
-  STANDING_CLIMB: "bg-yellow-500/50",
-  STANDING_JOGGING: "bg-orange-500/50",
-  JUMPS: "bg-red-500/50",
-  WAVES: "bg-pink-500/50",
-  PUSHES: "bg-indigo-500/50",
-} as const;
-
-// Add workout type labels
-const WORKOUT_LABELS: Record<WorkoutType, string> = {
-  PLS: "PLS",
-  SEATED_ROAD: "SeRo",
-  SEATED_CLIMB: "SeCl",
-  STANDING_CLIMB: "StCl",
-  STANDING_JOGGING: "StJo",
-  JUMPS: "Jump",
-  WAVES: "Wave",
-  PUSHES: "Push",
-} as const;
-
 // Add formatDuration helper function
 const formatDuration = (ms: number): string => {
   const minutes = Math.floor(ms / 60000);
@@ -113,34 +92,6 @@ const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
       ? sortedSegments[currentSegmentIndex + 1]
       : undefined;
   return { currentSegment, nextSegment };
-};
-
-// Add this component for the workout display
-const WorkoutDisplay = ({ 
-  segment, 
-  isNext = false,
-}: { 
-  segment?: Segment;
-  isNext?: boolean;
-}) => {
-  if (!segment) return null;
-
-  return (
-    <div
-      className={`flex-1 p-6 rounded-lg ${SEGMENT_COLORS[segment.type]} 
-      ${isNext ? "opacity-50" : ""} transition-all duration-300`}
-    >
-      <div className="text-lg font-bold mb-1">
-        {isNext ? "Next:" : "Current:"} {segment.title}
-      </div>
-      <div className="text-2xl font-bold mb-2">
-        {WORKOUT_LABELS[segment.type]}
-      </div>
-      <div className="text-sm opacity-75">
-        Duration: {((segment.endTime - segment.startTime) / 1000).toFixed(0)}s
-      </div>
-    </div>
-  );
 };
 
 // Update the BPM extraction to be simpler
@@ -632,7 +583,15 @@ type SongBPMData = {
 };
 
 // Add the cleanupPlayer function
-const cleanupPlayer = async (player: any, deviceId: string) => {
+const cleanupPlayer = async (
+  player: any, 
+  deviceId: string,
+  progressInterval: React.MutableRefObject<NodeJS.Timeout | null>,
+  setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>,
+  setPlayer: React.Dispatch<React.SetStateAction<any>>,
+  setDeviceId: React.Dispatch<React.SetStateAction<string>>,
+  setIsPlayerReady: React.Dispatch<React.SetStateAction<boolean>>
+) => {
   if (!player) return;
 
   try {
@@ -692,7 +651,6 @@ const cleanupPlayer = async (player: any, deviceId: string) => {
   }
 };
 
-
 export default function SongSegmentEditor({ params }: { params: any }) {
   const resolvedParams = use(params);
   const [track, setTrack] = useState<Track | null>(null);
@@ -718,6 +676,11 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   // Refs
   const timelineRef = useRef<HTMLDivElement>(null);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Add initialization flag
+  const [isInitializing, setIsInitializing] = useState(false);
+  const initAttempts = useRef(0);
+  const maxInitAttempts = 3;
 
   // Move segments initialization to useEffect
   useEffect(() => {
@@ -836,117 +799,216 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     );
   };
 
-  // Update the player initialization useEffect
-  useEffect(() => {
-    if (!window.Spotify && !isScriptLoaded) {
-      console.log("[Player Init] Loading Spotify SDK script");
-      const script = document.createElement("script");
-      script.src = "https://sdk.scdn.co/spotify-player.js";
-      script.async = true;
-      
-      script.onload = () => {
-        console.log("[Player Init] Script loaded");
-        setIsScriptLoaded(true);
-      };
+  // Update the cleanup function
+  const cleanup = useCallback((
+    player: any,
+    deviceId: string,
+    progressInterval: React.MutableRefObject<NodeJS.Timeout | null>,
+    setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>,
+    setPlayer: React.Dispatch<React.SetStateAction<any>>,
+    setDeviceId: React.Dispatch<React.SetStateAction<string>>,
+    setIsPlayerReady: React.Dispatch<React.SetStateAction<boolean>>
+  ) => {
+    if (!player) return;
 
-      document.body.appendChild(script);
+    console.log("[Player Cleanup] Starting cleanup");
+    
+    // Clear intervals first
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
     }
 
-    const initializePlayer = () => {
-      console.log("[Player Init] Starting initialization");
-      const accessToken = SpotifyAuthStorage.load();
-      if (!accessToken) {
-        console.error("[Player Init] No access token available");
-        return;
-      }
+    // Remove listeners
+    player.removeListener('ready');
+    player.removeListener('not_ready');
+    player.removeListener('player_state_changed');
+    player.removeListener('initialization_error');
+    player.removeListener('authentication_error');
+    player.removeListener('account_error');
+    player.removeListener('playback_error');
 
-      const player = new window.Spotify.Player({
-        name: "Workout Builder Web Player",
-        getOAuthToken: (cb: (token: string) => void) => {
-          cb(accessToken);
-        },
-      });
+    // Disconnect player
+    player.disconnect();
 
-      // Add event listeners
-      player.addListener("ready", ({ device_id }: { device_id: string }) => {
-        console.log("[Player Init] Ready with device ID:", device_id);
-        setDeviceId(device_id);
-        setIsPlayerReady(true);
-        setLoading(false);
-      });
+    // Reset states
+    setPlaybackState({
+      isPlaying: false,
+      position: 0,
+      duration: 0,
+    });
+    setPlayer(null);
+    setDeviceId("");
+    setIsPlayerReady(false);
+    
+    console.log("[Player Cleanup] Cleanup completed");
+  }, []);
 
-      player.addListener("not_ready", () => {
-        console.log("[Player Init] Device ID is not ready!");
-        setIsPlayerReady(false);
-      });
+  // Update the player initialization effect
+  useEffect(() => {
+    if (isInitializing || initAttempts.current >= maxInitAttempts) return;
 
-      // Add player state change listener
-      player.addListener("player_state_changed", (state: any) => {
-        if (!state) return;
-
-        console.log("[Player State] State changed:", state);
-
-        // Update playback state
-        setPlaybackState((prev) => {
-          const newPosition = state.position;
-          const startTime = Date.now() - newPosition;
-
-          // Clear existing interval
-          if (progressInterval.current) {
-            clearInterval(progressInterval.current);
-            progressInterval.current = null;
-          }
-
-          // Set up new interval if playing
-          if (!state.paused) {
-            progressInterval.current = setInterval(() => {
-              const position = Date.now() - startTime;
-              if (position <= state.duration) {
-                setPlaybackState(prev => ({
-                  ...prev,
-                  position: position,
-                }));
-              }
-            }, 50); // Update every 50ms for smoother progress
-          }
-
-          return {
-            ...prev,
-            isPlaying: !state.paused,
-            position: newPosition,
-            duration: state.duration,
-            hasStarted: true,
-            track_window: {
-              current_track: {
-                id: state.track_window?.current_track?.id,
-              },
-            },
+    const initializePlayer = async () => {
+      try {
+        setIsInitializing(true);
+        console.log("[Player Init] Starting initialization");
+        
+        if (!window.Spotify && !isScriptLoaded) {
+          const script = document.createElement("script");
+          script.src = "https://sdk.scdn.co/spotify-player.js";
+          script.async = true;
+          
+          script.onload = () => {
+            console.log("[Player Init] Script loaded");
+            setIsScriptLoaded(true);
           };
-        });
-      });
 
-      player.connect().then(success => {
-        if (success) {
-          console.log("[Player Init] Connected successfully");
-          setPlayer(player);
-        } else {
-          console.error("[Player Init] Failed to connect");
+          document.body.appendChild(script);
+          return;
         }
-      });
+
+        if (!window.Spotify || player) return;
+
+        const token = SpotifyAuthStorage.load();
+        if (!token) {
+          router.push("/");
+          return;
+        }
+
+        const newPlayer = new window.Spotify.Player({
+          name: 'Workout Builder Web Player',
+          getOAuthToken: cb => cb(token),
+        });
+
+        // Error handling
+        newPlayer.addListener('initialization_error', ({ message }) => {
+          console.error("[Player Error] Initialization failed:", message);
+          setIsInitializing(false);
+          initAttempts.current++;
+        });
+
+        newPlayer.addListener('authentication_error', ({ message }) => {
+          console.error("[Player Error] Authentication failed:", message);
+          setIsInitializing(false);
+          router.push("/");
+        });
+
+        newPlayer.addListener('ready', ({ device_id }) => {
+          console.log("[Player Init] Ready with device ID:", device_id);
+          setDeviceId(device_id);
+          setIsPlayerReady(true);
+          setIsInitializing(false);
+        });
+
+        newPlayer.addListener('not_ready', ({ device_id }) => {
+          console.log("[Player Warning] Device ID has gone offline:", device_id);
+          setIsPlayerReady(false);
+        });
+
+        newPlayer.addListener('player_state_changed', (state: any) => {
+          if (!state) {
+            console.log("[Player State] Received empty state");
+            return;
+          }
+
+          console.log("[Player State] State changed:", {
+            position: state.position,
+            duration: state.duration,
+            paused: state.paused,
+            timestamp: Date.now()
+          });
+
+          // Update playback state
+          setPlaybackState((prev) => {
+            const newPosition = state.position;
+            const startTime = Date.now() - newPosition;
+
+            console.log("[Position Update] Calculating new position:", {
+              newPosition,
+              startTime,
+              currentInterval: progressInterval.current ? "exists" : "none"
+            });
+
+            // Clear existing interval
+            if (progressInterval.current) {
+              console.log("[Interval] Clearing existing interval");
+              clearInterval(progressInterval.current);
+              progressInterval.current = null;
+            }
+
+            // Set up new interval if playing
+            if (!state.paused) {
+              console.log("[Interval] Setting up new interval for playing state");
+              progressInterval.current = setInterval(() => {
+                const position = Date.now() - startTime;
+                console.log("[Interval] Updating position:", {
+                  position,
+                  duration: state.duration,
+                  timestamp: Date.now()
+                });
+
+                if (position <= state.duration) {
+                  setPlaybackState(prev => ({
+                    ...prev,
+                    position: position,
+                  }));
+                } else {
+                  console.log("[Interval] Position exceeded duration, stopping interval");
+                  if (progressInterval.current) {
+                    clearInterval(progressInterval.current);
+                    progressInterval.current = null;
+                  }
+                }
+              }, 50); // Update every 50ms for smoother progress
+            } else {
+              console.log("[Player State] Track is paused, not setting up interval");
+            }
+
+            const newState = {
+              ...prev,
+              isPlaying: !state.paused,
+              position: newPosition,
+              duration: state.duration,
+              hasStarted: true,
+              track_window: {
+                current_track: {
+                  id: state.track_window?.current_track?.id,
+                },
+              },
+            };
+
+            console.log("[Player State] New state:", newState);
+            return newState;
+          });
+        });
+
+        await newPlayer.connect();
+        setPlayer(newPlayer);
+        console.log("[Player Init] Connected successfully");
+
+      } catch (error) {
+        console.error("[Player Init] Error during initialization:", error);
+        setIsInitializing(false);
+        initAttempts.current++;
+      }
     };
 
-    if (window.Spotify && !player) {
-      window.onSpotifyWebPlaybackSDKReady = initializePlayer;
-      initializePlayer();
-    }
+    initializePlayer();
 
     return () => {
       if (player) {
-        console.log("[Player Cleanup] Starting cleanup");
-        cleanupPlayer(player, deviceId).catch(console.error);
+        cleanup(
+          player,
+          deviceId,
+          progressInterval,
+          setPlaybackState,
+          setPlayer,
+          setDeviceId,
+          setIsPlayerReady
+        );
       }
     };
-  }, [isScriptLoaded, player, deviceId]);
+  }, [isScriptLoaded]);
 
   // Update track loading effect
   useEffect(() => {
@@ -1228,7 +1290,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     });
   };
 
-  // Also add logging to the useEffect cleanup
+  // Update the drag effect dependencies
   useEffect(() => {
     if (!dragState.segmentId || !track) {
       console.log("Drag effect not running:", { dragState, hasTrack: !!track });
@@ -1257,9 +1319,9 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       window.removeEventListener("mousemove", handleDragMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragState.segmentId, handleDragMove, track]);
+  }, [dragState.segmentId, handleDragMove]); // Remove track from dependencies since it's not directly used
 
-  // Update the useEffect for BPM extraction
+  // Update the BPM extraction effect
   useEffect(() => {
     const fetchBPM = async () => {
       if (!track) return;
@@ -1272,17 +1334,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     };
 
     fetchBPM();
-  }, [track, resolvedParams.playlistId]);
-
-  // Add intensity color function
-  const getIntensityColor = (intensity: number) => {
-    if (intensity === -1) return "bg-red-500/50 animate-pulse"; // BURN mode
-    if (intensity > 90) return "bg-red-500/50"; // 90-100%
-    if (intensity > 75) return "bg-yellow-500/50"; // 75-90%
-    if (intensity > 55) return "bg-green-500/50"; // 55-75%
-    if (intensity > 25) return "bg-blue-500/50"; // 25-55%
-    return "bg-white/50"; // 0-25%
-  };
+  }, [track?.id, resolvedParams.playlistId]); // Use track.id instead of whole track object
 
   // Add intensity label function
   const getIntensityLabel = (intensity: number) => {
@@ -1297,19 +1349,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     }
     // ... rest of your initialization code
   }, []);
-
-  // Update the useEffect for player initialization to include cleanup
-  useEffect(() => {
-    // ... existing initialization code ...
-
-    return () => {
-      if (player) {
-        console.log("[Player Cleanup] Starting cleanup");
-        cleanupPlayer(player, deviceId).catch(console.error);
-      }
-    };
-  }, [isScriptLoaded]);
-
 
   if (loading || !track) {
     return (

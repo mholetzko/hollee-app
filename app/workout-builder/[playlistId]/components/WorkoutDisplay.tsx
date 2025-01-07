@@ -1,33 +1,13 @@
 'use client'
 
 import { Segment } from '../types'
-import { SEGMENT_COLORS } from '../constants'
+import { SEGMENT_COLORS, WORKOUT_LABELS } from '../constants'
+import { getIntensityColor } from '../utils'
 
 interface WorkoutDisplayProps {
   segment?: Segment
   isNext?: boolean
 }
-
-// Helper function for intensity colors
-const getIntensityColor = (intensity: number) => {
-  if (intensity === -1) return 'bg-red-500/50'; // BURN mode
-  if (intensity > 90) return 'bg-red-500/50';    // 90-100%
-  if (intensity > 75) return 'bg-yellow-500/50';  // 75-90%
-  if (intensity > 55) return 'bg-green-500/50';   // 55-75%
-  if (intensity > 25) return 'bg-blue-500/50';    // 25-55%
-  return 'bg-white/50';                           // 0-25%
-};
-
-const WORKOUT_LABELS: Record<string, string> = {
-  PLS: 'PLS',
-  SEATED_ROAD: 'SeRo',
-  SEATED_CLIMB: 'SeCl',
-  STANDING_CLIMB: 'StCl',
-  STANDING_JOGGING: 'StJo',
-  JUMPS: 'Jump',
-  WAVES: 'Wave',
-  PUSHES: 'Push',
-};
 
 export const WorkoutDisplay = ({ segment, isNext = false }: WorkoutDisplayProps) => {
   if (!segment) return null;
