@@ -341,41 +341,13 @@ const cleanupPlayer = async (
   try {
     console.log("[cleanupPlayer] Starting cleanup sequence");
 
-    // 1. First pause playback using both methods
-    const token = SpotifyAuthStorage.load();
-    if (token) {
-      await Promise.all([
-        // Pause via API
-        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }).catch(console.error),
-        // Pause via SDK
-        player.pause().catch(console.error)
-      ]);
-    }
-
-    // 2. Clear all intervals immediately
+    // 1. Clear all intervals first to prevent state updates
     if (progressInterval.current) {
       clearInterval(progressInterval.current);
       progressInterval.current = null;
     }
 
-    // 3. Remove all event listeners
-    player.removeListener('ready');
-    player.removeListener('not_ready');
-    player.removeListener('player_state_changed');
-    player.removeListener('initialization_error');
-    player.removeListener('authentication_error');
-    player.removeListener('account_error');
-    player.removeListener('playback_error');
-
-    // 4. Disconnect the player
-    await player.disconnect();
-
-    // 5. Reset all states
+    // 2. Reset states before attempting API calls
     setPlaybackState({
       isPlaying: false,
       position: 0,
@@ -388,10 +360,48 @@ const cleanupPlayer = async (
     setDeviceId("");
     setIsPlayerReady(false);
 
+    // 3. Try to pause playback only if we have both token and deviceId
+    const token = SpotifyAuthStorage.load();
+    if (token && deviceId) {
+      try {
+        // Attempt to pause via SDK first
+        await player.pause().catch(() => {});
+        
+        // Then try API as backup
+        await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(() => {}); // Ignore API errors during cleanup
+      } catch {
+        // Ignore any pause errors during cleanup
+      }
+    }
+
+    // 4. Remove all event listeners
+    try {
+      player.removeListener('ready');
+      player.removeListener('not_ready');
+      player.removeListener('player_state_changed');
+      player.removeListener('initialization_error');
+      player.removeListener('authentication_error');
+      player.removeListener('account_error');
+      player.removeListener('playback_error');
+    } catch {
+      // Ignore listener removal errors
+    }
+
+    // 5. Finally disconnect the player
+    try {
+      await player.disconnect();
+    } catch {
+      // Ignore disconnect errors
+    }
+
     console.log("[cleanupPlayer] Cleanup sequence completed");
   } catch (error) {
     console.error("[cleanupPlayer] Error during cleanup:", error);
-    throw error;
   }
 };
 
@@ -1071,6 +1081,86 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     // ... rest of your initialization code
   }, []);
 
+  // Update the cleanup effect
+  useEffect(() => {
+    const currentPlayer = player;
+    const currentDeviceId = deviceId;
+
+    return () => {
+      if (currentPlayer) {
+        cleanupPlayer(
+          currentPlayer,
+          currentDeviceId,
+          progressInterval,
+          setPlaybackState,
+          setPlayer,
+          setDeviceId,
+          setIsPlayerReady
+        ).catch(console.error);
+      }
+    };
+  }, []); // Empty dependency array to ensure cleanup only runs on unmount
+
+  // Update the stop functionality
+  const handleStop = async () => {
+    if (!player || !isPlayerReady) return;
+
+    try {
+      console.log("[Player] Stopping playback");
+      
+      // First pause playback
+      await player.pause();
+      
+      // Then seek to beginning
+      await player.seek(0);
+      
+      // Update state
+      setPlaybackState((prev) => ({
+        ...prev,
+        isPlaying: false,
+        position: 0,
+      }));
+
+      // Clear any existing progress interval
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+        progressInterval.current = null;
+      }
+    } catch (error) {
+      console.error("[Player] Stop error:", error);
+    }
+  };
+
+  // Update the back button handler
+  const handleBackToPlaylist = async () => {
+    try {
+      // First stop playback
+      if (player && isPlayerReady) {
+        await handleStop();
+      }
+      
+      // Then clean up the player
+      if (player) {
+        await cleanupPlayer(
+          player,
+          deviceId,
+          progressInterval,
+          setPlaybackState,
+          setPlayer,
+          setDeviceId,
+          setIsPlayerReady
+        );
+      }
+
+      // Finally navigate back
+      router.push(`/workout-builder/${resolvedParams.playlistId}`);
+    } catch (error) {
+      console.error("[Navigation] Error returning to playlist:", error);
+      // Navigate anyway even if cleanup fails
+      router.push(`/workout-builder/${resolvedParams.playlistId}`);
+    }
+  };
+
   if (loading || !track) {
     return (
       <LoadingState
@@ -1091,9 +1181,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                 variant="ghost"
                 size="sm"
                 className="mb-4 hover:bg-white/10"
-                onClick={() =>
-                  router.push(`/workout-builder/${resolvedParams.playlistId}`)
-                }
+                onClick={handleBackToPlaylist}
               >
                 <ArrowLeftIcon className="w-4 h-4 mr-2" />
                 Back to Playlist
@@ -1197,17 +1285,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                     position={playbackState.position}
                     duration={track.duration_ms}
                     onPlay={togglePlayback}
-                    onStop={() => {
-                      if (player) {
-                        player.pause();
-                        player.seek(0);
-                        setPlaybackState((prev) => ({
-                          ...prev,
-                          isPlaying: false,
-                          position: 0,
-                        }));
-                      }
-                    }}
+                    onStop={handleStop}
                     onSeek={handleSeek}
                     isReady={isPlayerReady}
                   />
