@@ -17,6 +17,7 @@ import { SegmentEditor } from '../../components/SegmentEditor';
 import { TrackBPM } from "../../types";
 import { v4 as uuidv4 } from 'uuid';
 import { ChevronLeftIcon } from "@radix-ui/react-icons";
+import { CurrentSegmentEditor } from '../../components/CurrentSegmentEditor';
 
 // Add type for Spotify Player
 declare global {
@@ -1127,6 +1128,19 @@ export default function SongSegmentEditor({ params }: { params: any }) {
               playbackState={playbackState}
               trackBPM={trackBPM}
               onDragStart={handleDragStart}
+              formatDuration={formatDuration}
+            />
+            <CurrentSegmentEditor
+              segment={currentSegment}
+              onSegmentChange={(updates) => {
+                if (!currentSegment) return;
+                setSegments(prev =>
+                  prev.map(s =>
+                    s.id === currentSegment.id ? { ...s, ...updates } : s
+                  )
+                );
+              }}
+              track={track}
               formatDuration={formatDuration}
             />
           </div>
