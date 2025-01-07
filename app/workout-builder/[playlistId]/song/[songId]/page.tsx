@@ -1106,7 +1106,14 @@ export default function SongSegmentEditor({ params }: { params: any }) {
               onStop={handleStop}
               onNextSegment={handleNextSegment}
               onPreviousSegment={handlePreviousSegment}
+              onAddSegment={addSegment}
+              onSplitSegment={splitSegmentAtCurrentPosition}
               isReady={isPlayerReady}
+              canSplit={!!playbackState.position && segments.some(
+                segment => 
+                  playbackState.position >= segment.startTime && 
+                  playbackState.position < segment.endTime
+              )}
             />
           </div>
 
@@ -1150,27 +1157,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         <div className="w-96 border-l border-white/10 flex flex-col">
           <div className="p-4 border-b border-white/10 flex justify-between items-center">
             <h2 className="font-semibold">Segments</h2>
-            <div className="flex gap-2">
-              <Button 
-                onClick={splitSegmentAtCurrentPosition}
-                className="bg-white/10 hover:bg-white/20"
-                disabled={!playbackState.position || !segments.some(
-                  segment => 
-                    playbackState.position >= segment.startTime && 
-                    playbackState.position < segment.endTime
-                )}
-                size="sm"
-              >
-                Split
-              </Button>
-              <Button 
-                onClick={addSegment}
-                className="bg-white/10 hover:bg-white/20"
-                size="sm"
-              >
-                Add
-              </Button>
-            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <SegmentEditor
