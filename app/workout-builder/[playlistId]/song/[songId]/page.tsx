@@ -16,6 +16,7 @@ import { Timeline } from '../../components/Timeline';
 import { SegmentEditor } from '../../components/SegmentEditor';
 import { TrackBPM } from "../../types";
 import { v4 as uuidv4 } from 'uuid';
+import { ChevronLeftIcon } from "@radix-ui/react-icons";
 
 // Add type for Spotify Player
 declare global {
@@ -1021,142 +1022,151 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     );
   }
 
+  // Add this before the return statement to calculate current and next segments
+  const { currentSegment, nextSegment } = getCurrentAndNextSegment(
+    playbackState.position,
+    segments
+  );
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="p-8">
-        <div className="w-full">
-          <SongHeader
-            track={track}
-            trackBPM={trackBPM}
-            onBPMChange={handleBPMChange}
-            onBack={handleBackToPlaylist}
-            formatDuration={formatDuration}
-          />
-          
-          {/* Fixed workout display with beat counter */}
-          {playbackState.isPlaying && (
-            <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
-              <div className="w-full py-4">
-                <div className="flex gap-4 items-stretch">
-                  {(() => {
-                    const { currentSegment, nextSegment } =
-                      getCurrentAndNextSegment(playbackState.position, segments);
-                    
-                    return (
-                      <>
-                        <WorkoutDisplay segment={currentSegment} />
-                        <BeatCountdown 
-                          currentPosition={playbackState.position}
-                          nextSegmentStart={
-                            nextSegment?.startTime ?? track.duration_ms
-                          }
-                          bpm={trackBPM.tempo}
-                          nextSegment={nextSegment}
-                        />
-                        <WorkoutDisplay segment={nextSegment} isNext />
-                      </>
-                    );
-                  })()}
-                </div>
-                {/* Progress bar for current segment */}
-                {(() => {
-                  const { currentSegment } = getCurrentAndNextSegment(
-                    playbackState.position,
-                    segments
-                  );
-                  if (!currentSegment) return null;
-
-                  const segmentProgress =
-                    ((playbackState.position - currentSegment.startTime) /
-                      (currentSegment.endTime - currentSegment.startTime)) *
-                    100;
-
-                  return (
-                    <div className="h-1 bg-white/10 mt-2 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-white/50 transition-all duration-1000"
-                        style={{ width: `${segmentProgress}%` }}
-                      />
-                    </div>
-                  );
-                })()}
-              </div>
+    <div className="h-screen flex flex-col bg-black text-white">
+      {/* Top bar with header and workout display */}
+      <div className="flex-none border-b border-white/10">
+        {/* Header row */}
+        <div className="p-4 flex items-center gap-4">
+          <button 
+            onClick={handleBackToPlaylist}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          >
+            <ChevronLeftIcon className="w-6 h-6" />
+          </button>
+          <div className="flex-1">
+            <h1 className="font-semibold text-lg">{track.name}</h1>
+            <p className="text-sm text-gray-400">
+              {track.artists.map(a => a.name).join(", ")}
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">BPM</span>
+              <input
+                type="number"
+                value={trackBPM.tempo}
+                onChange={(e) => handleBPMChange(parseInt(e.target.value))}
+                className="w-16 bg-white/5 rounded px-2 py-1 text-sm"
+              />
             </div>
-          )}
+            <span className="text-sm text-gray-400">
+              {formatDuration(track.duration_ms)}
+            </span>
+          </div>
+        </div>
 
-          {/* Scrollable content area */}
-          <div className="flex-1 min-h-0">
-            <div className="h-full overflow-y-auto">
-              <div className="w-full py-8">
-                <div className="bg-white/5 rounded-lg p-6 space-y-6">
-                  {/* Transport controls */}
-                  <TransportControls
-                    isPlaying={playbackState.isPlaying}
-                    position={playbackState.position}
-                    duration={track.duration_ms}
-                    onPlay={togglePlayback}
-                    onStop={handleStop}
-                    onNextSegment={handleNextSegment}
-                    onPreviousSegment={handlePreviousSegment}
-                    isReady={isPlayerReady}
-                  />
-
-                  {/* BPM visualization with progress bar */}
-                  {trackBPM && (
-                    <BPMVisualization 
-                      bpm={trackBPM.tempo} 
-                      duration={track.duration_ms}
-                      currentPosition={playbackState.position}
-                      isPlaying={playbackState.isPlaying}
-                      onSeek={handleSeek}
-                    />
-                  )}
-
-                  {/* Section header with Add/Split Segment buttons */}
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold">Workout Segments</h2>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={splitSegmentAtCurrentPosition}
-                        className="bg-white/10 hover:bg-white/20"
-                        disabled={!playbackState.position || !segments.some(
-                          segment => 
-                            playbackState.position >= segment.startTime && 
-                            playbackState.position < segment.endTime
-                        )}
-                      >
-                        Split at Current Position
-                      </Button>
-                      <Button 
-                        onClick={addSegment}
-                        className="bg-white/10 hover:bg-white/20"
-                      >
-                        Add Segment
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Timeline
-                    ref={timelineRef}
-                    segments={segments}
-                    track={track}
-                    playbackState={playbackState}
-                    trackBPM={trackBPM}
-                    onDragStart={handleDragStart}
-                    formatDuration={formatDuration}
-                  />
-
-                  <SegmentEditor
-                    segments={segments}
-                    onSegmentsChange={setSegments}
-                    track={track}
-                  />
-                </div>
-              </div>
+        {/* Workout display when playing */}
+        {playbackState.isPlaying && (
+          <div className="bg-black/20 p-4">
+            <div className="flex gap-4 items-stretch">
+              <WorkoutDisplay segment={currentSegment} />
+              <BeatCountdown 
+                currentPosition={playbackState.position}
+                nextSegmentStart={nextSegment?.startTime ?? track.duration_ms}
+                bpm={trackBPM.tempo}
+                nextSegment={nextSegment}
+              />
+              <WorkoutDisplay segment={nextSegment} isNext />
             </div>
+            {/* Segment progress */}
+            {currentSegment && (
+              <div className="h-1 bg-white/10 mt-2 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-white/50 transition-all duration-1000"
+                  style={{ 
+                    width: `${((playbackState.position - currentSegment.startTime) /
+                      (currentSegment.endTime - currentSegment.startTime)) * 100}%` 
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Main content area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left panel with player controls and timeline */}
+        <div className="flex-1 p-4 flex flex-col gap-4">
+          {/* Transport controls */}
+          <div className="bg-white/5 rounded-lg p-4">
+            <TransportControls
+              isPlaying={playbackState.isPlaying}
+              position={playbackState.position}
+              duration={track.duration_ms}
+              onPlay={togglePlayback}
+              onStop={handleStop}
+              onNextSegment={handleNextSegment}
+              onPreviousSegment={handlePreviousSegment}
+              isReady={isPlayerReady}
+            />
+          </div>
+
+          {/* BPM visualization and timeline */}
+          <div className="bg-white/5 rounded-lg p-4 flex-1 flex flex-col gap-4">
+            {trackBPM && (
+              <BPMVisualization 
+                bpm={trackBPM.tempo} 
+                duration={track.duration_ms}
+                currentPosition={playbackState.position}
+                isPlaying={playbackState.isPlaying}
+                onSeek={handleSeek}
+              />
+            )}
+            <Timeline
+              ref={timelineRef}
+              segments={segments}
+              track={track}
+              playbackState={playbackState}
+              trackBPM={trackBPM}
+              onDragStart={handleDragStart}
+              formatDuration={formatDuration}
+            />
+          </div>
+        </div>
+
+        {/* Right sidebar */}
+        <div className="w-96 border-l border-white/10 flex flex-col">
+          <div className="p-4 border-b border-white/10 flex justify-between items-center">
+            <h2 className="font-semibold">Segments</h2>
+            <div className="flex gap-2">
+              <Button 
+                onClick={splitSegmentAtCurrentPosition}
+                className="bg-white/10 hover:bg-white/20"
+                disabled={!playbackState.position || !segments.some(
+                  segment => 
+                    playbackState.position >= segment.startTime && 
+                    playbackState.position < segment.endTime
+                )}
+                size="sm"
+              >
+                Split
+              </Button>
+              <Button 
+                onClick={addSegment}
+                className="bg-white/10 hover:bg-white/20"
+                size="sm"
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <SegmentEditor
+              segments={segments}
+              onSegmentsChange={setSegments}
+              track={track}
+            />
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}
