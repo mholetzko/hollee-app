@@ -15,6 +15,7 @@ import { SongHeader } from '../../components/SongHeader';
 import { Timeline } from '../../components/Timeline';
 import { SegmentEditor } from '../../components/SegmentEditor';
 import { TrackBPM } from "../../types";
+import { v4 as uuidv4 } from 'uuid';
 
 // Add type for Spotify Player
 declare global {
@@ -949,6 +950,68 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     }
   };
 
+  const splitSegmentAtCurrentPosition = () => {
+    if (!playbackState.position) return;
+
+    // Find the segment that contains the current position
+    const currentSegment = segments.find(
+      segment => 
+        playbackState.position >= segment.startTime && 
+        playbackState.position < segment.endTime
+    );
+
+    if (!currentSegment) return;
+
+    // Create two new segments from the split
+    const firstHalf: Segment = {
+      ...currentSegment,
+      id: uuidv4(),
+      endTime: playbackState.position
+    };
+
+    const secondHalf: Segment = {
+      ...currentSegment,
+      id: uuidv4(),
+      startTime: playbackState.position
+    };
+
+    // Replace the original segment with the two new segments
+    setSegments(prev => [
+      ...prev.filter(s => s.id !== currentSegment.id),
+      firstHalf,
+      secondHalf
+    ]);
+  };
+
+  // Add these handlers in the SongSegmentEditor component
+  const handleNextSegment = useCallback(() => {
+    if (!segments.length) return;
+
+    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime);
+    const currentIndex = sortedSegments.findIndex(
+      segment => playbackState.position >= segment.startTime && playbackState.position < segment.endTime
+    );
+
+    const nextSegment = sortedSegments[currentIndex + 1] || sortedSegments[0];
+    if (nextSegment) {
+      handleSeek(nextSegment.startTime);
+    }
+  }, [segments, playbackState.position, handleSeek]);
+
+  const handlePreviousSegment = useCallback(() => {
+    if (!segments.length) return;
+
+    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime);
+    const currentIndex = sortedSegments.findIndex(
+      segment => playbackState.position >= segment.startTime && playbackState.position < segment.endTime
+    );
+
+    const prevSegment = sortedSegments[currentIndex - 1] || sortedSegments[sortedSegments.length - 1];
+    if (prevSegment) {
+      handleSeek(prevSegment.startTime);
+    }
+  }, [segments, playbackState.position, handleSeek]);
+
   if (loading || !track) {
     return (
       <LoadingState
@@ -1033,29 +1096,44 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                     duration={track.duration_ms}
                     onPlay={togglePlayback}
                     onStop={handleStop}
-                    onSeek={handleSeek}
+                    onNextSegment={handleNextSegment}
+                    onPreviousSegment={handlePreviousSegment}
                     isReady={isPlayerReady}
                   />
 
-                  {/* BPM visualization */}
+                  {/* BPM visualization with progress bar */}
                   {trackBPM && (
                     <BPMVisualization 
                       bpm={trackBPM.tempo} 
                       duration={track.duration_ms}
                       currentPosition={playbackState.position}
                       isPlaying={playbackState.isPlaying}
+                      onSeek={handleSeek}
                     />
                   )}
 
-                  {/* Section header with Add Segment button */}
+                  {/* Section header with Add/Split Segment buttons */}
                   <div className="flex justify-between items-center">
                     <h2 className="text-xl font-semibold">Workout Segments</h2>
-                    <Button 
-                      onClick={addSegment}
-                      className="bg-white/10 hover:bg-white/20"
-                    >
-                      Add Segment
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={splitSegmentAtCurrentPosition}
+                        className="bg-white/10 hover:bg-white/20"
+                        disabled={!playbackState.position || !segments.some(
+                          segment => 
+                            playbackState.position >= segment.startTime && 
+                            playbackState.position < segment.endTime
+                        )}
+                      >
+                        Split at Current Position
+                      </Button>
+                      <Button 
+                        onClick={addSegment}
+                        className="bg-white/10 hover:bg-white/20"
+                      >
+                        Add Segment
+                      </Button>
+                    </div>
                   </div>
 
                   <Timeline
