@@ -5,21 +5,16 @@
 import { useEffect, useState, useRef, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from '@/components/ui/button';
-import {
-  PlayIcon,
-  PauseIcon,
-  StopIcon,
-  ArrowLeftIcon,
-} from "@radix-ui/react-icons";
 import { TrackStorage } from '../../../../utils/storage/TrackStorage';
 import { SpotifyAuthStorage } from '../../../../utils/storage/SpotifyAuthStorage';
-import Image from 'next/image';
 import { BPMVisualization } from "../../components/BPMVisualization";
 import { WorkoutDisplay } from "../../components/WorkoutDisplay";
-import { getIntensityColor } from '../../utils';
-import { WORKOUT_LABELS, SEGMENT_COLORS } from '../../constants';
 import { BeatCountdown } from '../../components/BeatCountdown';
 import { TransportControls } from '../../components/TransportControls';
+import { SongHeader } from '../../components/SongHeader';
+import { Timeline } from '../../components/Timeline';
+import { SegmentEditor } from '../../components/SegmentEditor';
+import { TrackBPM } from "../../types";
 
 // Add type for Spotify Player
 declare global {
@@ -70,13 +65,6 @@ interface DragState {
   initialTime: number;
 }
 
-// Add formatDuration helper function
-const formatDuration = (ms: number): string => {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
-
 // Add this helper function to find current segment
 const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
   const sortedSegments = [...segments].sort(
@@ -116,26 +104,6 @@ const getBPMFromSources = async (track: Track, playlistId: string): Promise<Song
     songId: track.id,
     bpm: defaultBPM,
     source: "manual"
-  };
-};
-
-// Add this for the metronome sound
-const useMetronomeSound = () => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    // Create audio element for metronome
-    audioRef.current = new Audio("/click.mp3"); // Add a click.mp3 to your public folder
-    audioRef.current.volume = 0.5;
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, []);
-
-  return {
-    play: () => audioRef.current?.play(),
   };
 };
 
@@ -180,131 +148,6 @@ const LoadingState = () => {
       <div className="animate-spin h-8 w-8 border-2 border-white/50 rounded-full border-t-transparent" />
       <div className="text-sm text-gray-400">Loading track...</div>
       </div>
-  );
-};
-
-// Add these helper functions at the top level
-const timeToMs = (timeStr: string): number | null => {
-  if (!timeStr || !timeStr.includes(":")) return null;
-
-  try {
-    const [minutes, seconds] = timeStr.split(":").map(Number);
-
-    if (
-      isNaN(minutes) ||
-      isNaN(seconds) ||
-      seconds >= 60 ||
-      minutes < 0 ||
-      seconds < 0
-    ) {
-      return null;
-    }
-
-    return (minutes * 60 + seconds) * 1000;
-  } catch (error) {
-    console.error("Error converting time to ms:", error);
-    return null;
-  }
-};
-
-const msToTimeStr = (ms: number): string => {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
-
-// Update the SegmentTimeInput component
-const SegmentTimeInput = ({
-  value,
-  onChange,
-  label,
-  max,
-  segments,
-  segmentId,
-  isStart,
-}: {
-  value: number;
-  onChange: (time: number) => void;
-  label: string;
-  max: number;
-  segments: Segment[];
-  segmentId: string;
-  isStart: boolean;
-}) => {
-  const [timeStr, setTimeStr] = useState(msToTimeStr(value));
-  const [error, setError] = useState(false);
-
-  // Update local state when prop changes
-  useEffect(() => {
-    setTimeStr(msToTimeStr(value));
-  }, [value]);
-
-  const validateTime = (newMs: number | null): boolean => {
-    if (newMs === null) return false;
-
-    // Find adjacent segments
-    const currentSegment = segments.find((s) => s.id === segmentId);
-    if (!currentSegment) return false;
-
-    const otherSegments = segments
-      .filter((s) => s.id !== segmentId)
-      .sort((a, b) => a.startTime - b.startTime);
-
-    if (isStart) {
-      // For start time
-      const prevSegment = otherSegments
-        .filter((s) => s.endTime <= currentSegment.endTime)
-        .pop();
-
-      const minTime = prevSegment ? prevSegment.endTime : 0;
-      const maxTime = currentSegment.endTime - 1000;
-
-      return newMs >= minTime && newMs <= maxTime;
-    } else {
-      // For end time
-      const nextSegment = otherSegments
-        .filter((s) => s.startTime >= currentSegment.startTime)
-        .shift();
-
-      const minTime = currentSegment.startTime + 1000;
-      const maxTime = nextSegment ? nextSegment.startTime : max;
-
-      return newMs >= minTime && newMs <= maxTime;
-    }
-  };
-
-  const handleChange = (inputStr: string) => {
-    setTimeStr(inputStr);
-
-    const newMs = timeToMs(inputStr);
-    if (newMs !== null && validateTime(newMs)) {
-      onChange(newMs);
-      setError(false);
-    } else {
-      setError(true);
-    }
-  };
-
-  return (
-    <div className="space-y-1">
-      <label className="text-xs text-gray-400">{label}</label>
-      <input
-        type="text"
-        pattern="[0-9]{1,2}:[0-9]{2}"
-        placeholder="MM:SS"
-        className={`bg-white/5 rounded px-2 py-1 w-20 text-sm
-          ${error ? "border border-red-500" : ""}`}
-        value={timeStr}
-        onChange={(e) => handleChange(e.target.value)}
-        onBlur={() => {
-          if (error) {
-            setTimeStr(msToTimeStr(value));
-            setError(false);
-          }
-        }}
-      />
-      {error && <div className="text-xs text-red-500">Invalid time</div>}
-    </div>
   );
 };
 
@@ -495,63 +338,6 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     });
   };
 
-  // Update the BPMInput component
-  const BPMInput = ({
-    value,
-    onChange,
-  }: {
-    value: number;
-    onChange: (bpm: number) => void;
-  }) => {
-    const handleBPMChange = (newValue: number) => {
-      if (isNaN(newValue)) return;
-      
-      console.log("[BPM Input] Updating BPM:", {
-        oldValue: value,
-        newValue,
-        track: track?.id,
-      });
-
-      onChange(newValue);
-      
-      // Save immediately when BPM changes
-      if (track) {
-        TrackStorage.bpm.save(resolvedParams.playlistId, track.id, newValue);
-      }
-    };
-
-    return (
-      <div className="flex flex-col items-center gap-3 w-full">
-        <div className="flex items-center gap-4 w-full">
-          <input
-            type="number"
-            min="60"
-            max="200"
-            value={value}
-            onChange={(e) => handleBPMChange(parseInt(e.target.value))}
-            className="bg-white/5 rounded px-4 py-3 w-32 text-center text-2xl font-mono"
-          />
-          <span className="text-xl text-gray-400 font-mono">BPM</span>
-        </div>
-        <a 
-          href={
-            track
-              ? `https://songbpm.com/@${track.artists[0]?.name
-                  .toLowerCase()
-                  .replace(/\s+/g, "-")}/${track.name
-                  .toLowerCase()
-                  .replace(/\s+/g, "-")}`
-              : "#"
-          }
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-sm text-blue-400 hover:text-blue-300 underline"
-        >
-          Look up on SongBPM
-        </a>
-      </div>
-    );
-  };
 
   // Update the cleanup function
   const cleanup = useCallback((
@@ -1174,55 +960,14 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     <div className="min-h-screen bg-black text-white">
       <div className="p-8">
         <div className="w-full">
-          {/* Fixed header with song info and BPM */}
-          <div className="flex-none bg-black/20 backdrop-blur-sm p-8 border-b border-white/10">
-            <div className="w-full">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-4 hover:bg-white/10"
-                onClick={handleBackToPlaylist}
-              >
-                <ArrowLeftIcon className="w-4 h-4 mr-2" />
-                Back to Playlist
-              </Button>
-
-              <div className="flex items-start gap-6">
-                <div className="flex items-center gap-6">
-                  {track.album?.images?.[0] && (
-                    <Image
-                      src={track.album.images[0].url}
-                      alt={track.name}
-                      width={48}
-                      height={48}
-                      className="rounded"
-                    />
-                  )}
-                  <div>
-                    <h1 className="text-3xl font-bold">{track.name}</h1>
-                    <p className="text-gray-400">
-                      {track.artists.map((a) => a.name).join(", ")} •{" "}
-                      {formatDuration(track.duration_ms)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* BPM input stays in header */}
-                <div className="ml-auto text-center min-w-[300px]">
-                  <div className="bg-white/5 px-6 py-4 rounded-lg">
-                    <BPMInput 
-                      value={trackBPM.tempo}
-                      onChange={handleBPMChange}
-                    />
-                  </div>
-                  <div className="mt-2 text-sm text-gray-400">
-                    {trackBPM.isManual ? "Manual BPM" : "BPM from title"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+          <SongHeader
+            track={track}
+            trackBPM={trackBPM}
+            onBPMChange={handleBPMChange}
+            onBack={handleBackToPlaylist}
+            formatDuration={formatDuration}
+          />
+          
           {/* Fixed workout display with beat counter */}
           {playbackState.isPlaying && (
             <div className="flex-none bg-black/10 backdrop-blur-sm border-b border-white/10">
@@ -1308,326 +1053,20 @@ export default function SongSegmentEditor({ params }: { params: any }) {
                     />
                   )}
 
-                  {/* Timeline */}
-                  <div 
-                    ref={timelineRef}
-                    className="relative h-32 bg-white/10 rounded"
-                  >
-                    {/* Vertical progress bar */}
-                    <div 
-                      className="absolute top-0 bottom-0 w-0.5 bg-white/50 z-20 transition-all duration-100"
-                      style={{
-                        left: `${
-                          (playbackState.position / track.duration_ms) * 100
-                        }%`,
-                      }}
-                    />
+                  <Timeline
+                    segments={segments}
+                    track={track}
+                    playbackState={playbackState}
+                    trackBPM={trackBPM}
+                    onDragStart={handleDragStart}
+                    formatDuration={formatDuration}
+                  />
 
-                    {/* Beat markers in the timeline */}
-                    {trackBPM && (
-                      <div className="absolute inset-0 pointer-events-none">
-                        {Array.from({
-                          length: Math.floor(
-                            track.duration_ms / (60000 / trackBPM.tempo)
-                          ),
-                        }).map((_, i) => {
-                          const position =
-                            ((i * (60000 / trackBPM.tempo)) / track.duration_ms) *
-                            100;
-                          const isMeasureStart = i % 4 === 0;
-                          const isHalfBeat = i % 2 === 0;
-                          
-                          return (
-                            <div
-                              key={`beat-${i}-${position}`}
-                              className={`absolute top-0 bottom-0 w-px ${
-                                isMeasureStart
-                                  ? "bg-white/20"
-                                  : isHalfBeat
-                                  ? "bg-white/15"
-                                  : "bg-white/5"
-                              }`}
-                              style={{ 
-                                left: `${position}%`,
-                                height: isMeasureStart
-                                  ? "100%"
-                                  : isHalfBeat
-                                  ? "75%"
-                                  : "50%",
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Segments */}
-                    {segments
-                      .sort((a, b) => a.startTime - b.startTime)
-                      .map((segment) => {
-                        const isCurrentSegment =
-                          playbackState.isPlaying &&
-                          playbackState.position >= segment.startTime && 
-                          playbackState.position < segment.endTime;
-
-                        return (
-                          <div
-                            key={segment.id}
-                            className={`absolute h-full group
-                              transition-all duration-300
-                              ${getIntensityColor(segment.intensity)}
-                              ${
-                                isCurrentSegment
-                                  ? "ring-2 ring-white ring-offset-2 ring-offset-black/50 z-10"
-                                  : ""
-                              }
-                            `}
-                            style={{
-                              left: `${
-                                (segment.startTime / track.duration_ms) * 100
-                              }%`,
-                              width: `${
-                                ((segment.endTime - segment.startTime) /
-                                  track.duration_ms) *
-                                100
-                              }%`,
-                            }}
-                          >
-                            {/* Drag handles remain the same */}
-                            <div 
-                              className="absolute left-0 top-0 bottom-0 w-2 bg-white/20 cursor-ew-resize 
-                                hover:bg-white/60 group-hover:bg-white/40 transition-colors"
-                              onMouseDown={(e) =>
-                                handleDragStart(e, segment.id, "start")
-                              }
-                            >
-                              <div className="h-8 w-1 bg-white/60 rounded hidden group-hover:block" />
-                            </div>
-                            <div 
-                              className="absolute right-0 top-0 bottom-0 w-2 bg-white/20 cursor-ew-resize 
-                                hover:bg-white/60 group-hover:bg-white/40 transition-colors"
-                              onMouseDown={(e) =>
-                                handleDragStart(e, segment.id, "end")
-                              }
-                            >
-                              <div className="h-8 w-1 bg-white/60 rounded hidden group-hover:block" />
-                            </div>
-
-                            {/* Time indicators while dragging */}
-                            {dragState.segmentId === segment.id && (
-                              <div className="absolute -top-6 left-0 right-0 text-xs text-white/90 flex justify-between px-1">
-                                <span>{formatDuration(segment.startTime)}</span>
-                                <span>{formatDuration(segment.endTime)}</span>
-                              </div>
-                            )}
-
-                            <div
-                              className={`p-2 text-xs ${
-                                isCurrentSegment ? "text-white" : ""
-                              }`}
-                            >
-                              <div className="font-medium truncate">
-                                {segment.title}
-                              </div>
-                              <div className="opacity-75">
-                                {WORKOUT_LABELS[segment.type]} •{" "}
-                                {getIntensityLabel(segment.intensity)}
-                              </div>
-                              <div>
-                                {formatDuration(segment.startTime)} -{" "}
-                                {formatDuration(segment.endTime)}
-                              </div>
-                              <div>
-                                Duration:{" "}
-                                {formatDuration(
-                                  segment.endTime - segment.startTime
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-
-                  {/* Segment List */}
-                  <div className="space-y-4">
-                    {segments
-                      .sort((a, b) => a.startTime - b.startTime)
-                      .map((segment) => (
-                        <div
-                          key={segment.id}
-                          className="flex items-center gap-4 bg-white/5 p-4 rounded"
-                        >
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              className="bg-white/5 rounded px-2 py-1 text-sm w-full"
-                              value={segment.title}
-                              placeholder="Segment Title"
-                              onChange={(e) => {
-                                setSegments(
-                                  segments.map((s) =>
-                                  s.id === segment.id
-                                    ? { ...s, title: e.target.value }
-                                    : s
-                                  )
-                                );
-                              }}
-                            />
-                            <div className="flex items-center gap-4">
-                              <SegmentTimeInput
-                                label="Start Time"
-                                value={segment.startTime}
-                                min={0}
-                                max={segment.endTime - 1000}
-                                onChange={(newTime) => {
-                                  setSegments(
-                                    segments.map((s) =>
-                                        s.id === segment.id
-                                        ? { ...s, startTime: newTime }
-                                        : s
-                                    )
-                                  );
-                                }}
-                                segments={segments}
-                                segmentId={segment.id}
-                                isStart={true}
-                              />
-                              <SegmentTimeInput
-                                label="End Time"
-                                value={segment.endTime}
-                                min={segment.startTime + 1000}
-                                max={track?.duration_ms || 0}
-                                onChange={(newTime) => {
-                                  setSegments(
-                                    segments.map((s) =>
-                                        s.id === segment.id
-                                        ? { ...s, endTime: newTime }
-                                          : s
-                                    )
-                                  );
-                                  }}
-                                segments={segments}
-                                segmentId={segment.id}
-                                isStart={false}
-                                />
-                              <div className="text-sm text-gray-400">
-                                Duration:{" "}
-                                {msToTimeStr(segment.endTime - segment.startTime)}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-4">
-                            <select
-                              className="bg-white/5 rounded px-3 py-2"
-                              value={segment.type}
-                              onChange={(e) => {
-                                setSegments(
-                                  segments.map((s) =>
-                                  s.id === segment.id
-                                      ? {
-                                          ...s,
-                                          type: e.target.value as WorkoutType,
-                                        }
-                                    : s
-                                  )
-                                );
-                              }}
-                            >
-                              {Object.entries(WORKOUT_LABELS).map(
-                                ([value, label]) => (
-                                <option key={value} value={value}>
-                                  {label}
-                                </option>
-                                )
-                              )}
-                            </select>
-
-                            <div className="space-y-1">
-                              <div className="flex justify-between items-center">
-                                <label className="text-xs text-gray-400">
-                                  Intensity
-                                </label>
-                                <span className="text-sm font-mono">
-                                  {segment.intensity === -1
-                                    ? "BURN"
-                                    : `${segment.intensity}%`}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="100"
-                                  step="5"
-                                  value={
-                                    segment.intensity === -1
-                                      ? 100
-                                      : segment.intensity
-                                  }
-                                  className="w-full h-2 rounded-full bg-white/10 appearance-none cursor-pointer
-                                    [&::-webkit-slider-thumb]:appearance-none
-                                    [&::-webkit-slider-thumb]:w-4
-                                    [&::-webkit-slider-thumb]:h-4
-                                    [&::-webkit-slider-thumb]:rounded-full
-                                    [&::-webkit-slider-thumb]:bg-white
-                                    [&::-webkit-slider-thumb]:cursor-pointer
-                                    [&::-webkit-slider-thumb]:transition-all
-                                    [&::-webkit-slider-thumb]:hover:scale-110"
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value);
-                                    setSegments(
-                                      segments.map((s) =>
-                                      s.id === segment.id
-                                        ? { ...s, intensity: value }
-                                        : s
-                                      )
-                                    );
-                                  }}
-                                />
-                                <button
-                                  className={`px-2 py-1 rounded text-xs font-semibold transition-colors
-                                    ${
-                                      segment.intensity === -1
-                                        ? "bg-red-500 text-white"
-                                        : "bg-white/10 hover:bg-white/20"
-                                    }`}
-                                  onClick={() => {
-                                    setSegments(
-                                      segments.map((s) =>
-                                      s.id === segment.id
-                                          ? {
-                                              ...s,
-                                              intensity:
-                                                segment.intensity === -1 ? 75 : -1,
-                                            }
-                                          : s
-                                      )
-                                    );
-                                  }}
-                                >
-                                  BURN
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              const updatedSegments = segments.filter(
-                                (s) => s.id !== segment.id
-                              );
-                              setSegments(updatedSegments);
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                  </div>
+                  <SegmentEditor
+                    segments={segments}
+                    onSegmentsChange={setSegments}
+                    track={track}
+                  />
                 </div>
               </div>
             </div>

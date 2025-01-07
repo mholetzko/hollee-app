@@ -15,23 +15,12 @@ export interface Segment {
   intensity: number
 }
 
-export enum WorkoutType {
-  SEATED_ROAD = 'SEATED_ROAD',
-  PLS = 'PLS',
-  SEATED_CLIMB = 'SEATED_CLIMB',
-  STANDING_CLIMB = 'STANDING_CLIMB',
-  STANDING_JOGGING = 'STANDING_JOGGING',
-  JUMPS = 'JUMPS',
-  WAVES = 'WAVES',
-  PUSHES = 'PUSHES'
-}
-
 export interface PlaybackState {
   isPlaying: boolean
   position: number
   duration: number
-  hasStarted: boolean
-  track_window: {
+  hasStarted?: boolean
+  track_window?: {
     current_track: {
       id: string
     }
@@ -42,6 +31,16 @@ export interface TrackBPM {
   tempo: number
   isManual: boolean
 }
+
+export type WorkoutType = 
+  | "PLS"
+  | "SEATED_ROAD"
+  | "SEATED_CLIMB"
+  | "STANDING_CLIMB"
+  | "STANDING_JOGGING"
+  | "JUMPS"
+  | "WAVES"
+  | "PUSHES";
 
 // Add a helper function to generate storage keys
 export const getStorageKey = (playlistId: string, songId: string, type: 'segments' | 'bpm', position?: number) => {
