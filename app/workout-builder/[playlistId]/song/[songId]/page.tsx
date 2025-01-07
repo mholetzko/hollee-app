@@ -18,6 +18,7 @@ import { TrackBPM } from "../../types";
 import { v4 as uuidv4 } from 'uuid';
 import { ChevronLeftIcon } from "@radix-ui/react-icons";
 import { CurrentSegmentEditor } from '../../components/CurrentSegmentEditor';
+import { WorkoutStructureHint } from '../../components/WorkoutStructureHint';
 
 // Add type for Spotify Player
 declare global {
@@ -1196,6 +1197,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
           </div>
         </div>
       </div>
+      <WorkoutStructureHint />
     </div>
   );
 }

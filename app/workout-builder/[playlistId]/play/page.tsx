@@ -366,6 +366,9 @@ export default function WorkoutPlayer({
   // Add a state to track script loading
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
 
+  // Add state to track GO! display
+  const [showingGo, setShowingGo] = useState(false);
+
   // Define playTrack first since it's used by playNextTrack
   const playTrack = useCallback(async (trackId: string) => {
     try {
@@ -860,6 +863,35 @@ export default function WorkoutPlayer({
     }
   }, [playbackState.isPlaying, player]);
 
+  // Update the useEffect that handles segment transitions
+  useEffect(() => {
+    if (!trackBPM.tempo || !playbackState.isPlaying) return;
+
+    const beatDuration = 60000 / trackBPM.tempo;
+    const checkInterval = setInterval(() => {
+      const { currentSegment, nextSegment } = getCurrentAndNextSegment(
+        playbackState.position,
+        segments
+      );
+
+      if (nextSegment) {
+        const timeToNext = nextSegment.startTime - playbackState.position;
+        const beatsUntilNext = Math.ceil(timeToNext / beatDuration);
+
+        // When we hit GO!
+        if (beatsUntilNext === 0 && !showingGo) {
+          setShowingGo(true);
+          // Keep showing GO! for 2 seconds
+          setTimeout(() => {
+            setShowingGo(false);
+          }, 2000);
+        }
+      }
+    }, 100);
+
+    return () => clearInterval(checkInterval);
+  }, [trackBPM.tempo, playbackState.isPlaying, playbackState.position, segments, showingGo]);
+
   // 3. Return your JSX
   if (error) {
     return <div>Error: {error}</div>;
@@ -1011,6 +1043,8 @@ export default function WorkoutPlayer({
                       }
                       bpm={trackBPM.tempo}
                       nextSegment={nextSegment}
+                      currentSegment={currentSegment}
+                      forceShowGo={showingGo}
                     />
                     <WorkoutDisplay segment={nextSegment} isNext />
                   </>

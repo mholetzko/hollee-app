@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { Segment, Track, WorkoutType } from '../types';
 import { WORKOUT_LABELS } from '../constants';
+import { useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 interface SegmentEditorProps {
   segments: Segment[];
@@ -28,6 +30,21 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
   const removeSegment = (id: string) => {
     onSegmentsChange(segments.filter(s => s.id !== id));
   };
+
+  useEffect(() => {
+    if (track.duration_ms && segments.length === 0) {
+      // Create initial full-length segment
+      const initialSegment: Segment = {
+        id: uuidv4(),
+        type: 'SEATED_ROAD',
+        startTime: 0,
+        endTime: track.duration_ms,
+        intensity: 70,
+        title: 'Base Ride'
+      };
+      onSegmentsChange([initialSegment]);
+    }
+  }, [track.duration_ms, segments.length, onSegmentsChange]);
 
   return (
     <div className="space-y-2">
