@@ -1,7 +1,7 @@
 "use client";
 
 import Image from 'next/image';
-import { Footer } from "@/components/Footer";
+import { Footer } from "/components/Footer";
 
 function FQDN() {
   return process.env.NEXT_PUBLIC_VERCEL_URL

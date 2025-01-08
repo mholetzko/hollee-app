@@ -6,13 +6,18 @@ export const ExampleWorkoutStorage = {
     return Object.values(EXAMPLE_PLAYLISTS).some(playlist => playlist.id === playlistId);
   },
 
+  hasConfig(playlistId: string): boolean {
+    // Use the existing WorkoutConfigStorage.hasConfig method
+    return WorkoutConfigStorage.hasConfig(playlistId);
+  },
+
   async initializeIfExample(playlistId: string): Promise<boolean> {
     if (!this.isExamplePlaylist(playlistId)) {
       return false;
     }
 
     // Check if this example playlist has already been initialized
-    const hasExistingConfig = WorkoutConfigStorage.hasConfig(playlistId);
+    const hasExistingConfig = this.hasConfig(playlistId);
     if (hasExistingConfig) {
       return false;
     }

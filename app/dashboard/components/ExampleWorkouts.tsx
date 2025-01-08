@@ -3,9 +3,56 @@
 import { EXAMPLE_PLAYLISTS } from '@/app/config/example-workouts';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { ExampleWorkoutStorage } from '@/app/utils/storage/ExampleWorkoutStorage';
+import toast from 'react-hot-toast';
+import { useState } from 'react';
 
 export function ExampleWorkouts() {
   const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleExampleClick = async (playlistId: string) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    try {
+      // 1. Immediate navigation to the workout page
+      router.push(`/workout-builder/${playlistId}`);
+
+      // Check if we need to initialize
+      const needsInitialization = !ExampleWorkoutStorage.hasConfig(playlistId);
+      
+      if (needsInitialization) {
+        // 2. Show loading toast
+        const loadingToast = toast.loading('Loading workout configuration...', {
+          duration: 2000
+        });
+        
+        // 3. Initialize the workout
+        const isInitialized = await ExampleWorkoutStorage.initializeIfExample(playlistId);
+        
+        if (isInitialized) {
+          // 4. Show success and reload
+          toast.dismiss(loadingToast);
+          toast.success('Workout configuration loaded successfully', {
+            duration: 2000
+          });
+          
+          // 5. Reload to show the new configuration
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading example workout:', error);
+      toast.error('Failed to load workout configuration', {
+        duration: 2000
+      });
+    } finally {
+      setTimeout(() => setIsProcessing(false), 1000);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -25,7 +72,8 @@ export function ExampleWorkouts() {
           <Button
             className="bg-[#1DB954] hover:bg-[#1DB954]/90 text-white transition-all duration-300 
               hover:scale-102 hover:shadow-lg hover:shadow-[#1DB954]/20"
-            onClick={() => router.push(`/workout-builder/${playlist.id}`)}
+            onClick={() => handleExampleClick(playlist.id)}
+            disabled={isProcessing}
           >
             <svg
               className="w-4 h-4 mr-2"

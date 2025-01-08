@@ -19,6 +19,7 @@ import { PlaylistOverview } from './components/PlaylistOverview';
 import { Toaster, toast } from 'react-hot-toast'
 import { ExportImportButtons } from './components/ExportImportButtons';
 import { ExampleWorkoutStorage } from '@/app/utils/storage/ExampleWorkoutStorage';
+import { WelcomeGuide } from './components/WelcomeGuide';
 
 interface Track {
   id: string
@@ -134,6 +135,7 @@ export default function WorkoutBuilder({ params }: { params: { playlistId: strin
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <WelcomeGuide playlistId={params.playlistId} />
       <Toaster
         position="top-center"
         toastOptions={{
