@@ -5,7 +5,7 @@ import { Footer } from "/components/Footer";
 
 function FQDN() {
   return process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+    ? `https://holleerides.app`
     : "http://localhost:3000";
 }
 
