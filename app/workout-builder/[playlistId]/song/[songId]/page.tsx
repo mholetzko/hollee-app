@@ -4,19 +4,19 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { TrackStorage } from '../../../../utils/storage/TrackStorage';
-import { SpotifyAuthStorage } from '../../../../utils/storage/SpotifyAuthStorage';
+import { TrackStorage } from "../../../../utils/storage/TrackStorage";
+import { SpotifyAuthStorage } from "../../../../utils/storage/SpotifyAuthStorage";
 import { BPMVisualization } from "../../components/BPMVisualization";
 import { WorkoutDisplay } from "../../components/WorkoutDisplay";
-import { BeatCountdown } from '../../components/BeatCountdown';
-import { TransportControls } from '../../components/TransportControls';
-import { Timeline } from '../../components/Timeline';
-import { SegmentEditor } from '../../components/SegmentEditor';
-import { TrackBPM } from "../../types";
-import { v4 as uuidv4 } from 'uuid';
+import { BeatCountdown } from "../../components/BeatCountdown";
+import { TransportControls } from "../../components/TransportControls";
+import { Timeline } from "../../components/Timeline";
+import { SegmentEditor } from "../../components/SegmentEditor";
+import { PlaybackState, Segment, Track, TrackBPM } from "../../types";
+import { v4 as uuidv4 } from "uuid";
 import { ChevronLeftIcon } from "@radix-ui/react-icons";
-import { CurrentSegmentEditor } from '../../components/CurrentSegmentEditor';
-import { WorkoutStructureHint } from '../../components/WorkoutStructureHint';
+import { CurrentSegmentEditor } from "../../components/CurrentSegmentEditor";
+import { WorkoutStructureHint } from "../../components/WorkoutStructureHint";
 
 // Add type for Spotify Player
 declare global {
@@ -24,40 +24,6 @@ declare global {
     onSpotifyWebPlaybackSDKReady: () => void;
     Spotify: { Player: any };
   }
-}
-
-interface Track {
-  id: string;
-  name: string;
-  duration_ms: number;
-  artists: { name: string }[];
-  album?: { images?: { url: string }[] };
-}
-
-interface Segment {
-  id: string;
-  startTime: number;
-  endTime: number;
-  title: string;
-  type: WorkoutType;
-  intensity: number;
-}
-
-// Add workout types enum
-type WorkoutType = 
-  | "PLS"
-  | "SEATED_ROAD"
-  | "SEATED_CLIMB"
-  | "STANDING_CLIMB"
-  | "STANDING_JOGGING"
-  | "JUMPS"
-  | "WAVES"
-  | "PUSHES";
-
-interface PlaybackState {
-  isPlaying: boolean;
-  position: number;
-  duration: number;
 }
 
 interface DragState {
@@ -87,7 +53,10 @@ const getCurrentAndNextSegment = (position: number, segments: Segment[]) => {
 };
 
 // Update the BPM extraction to be simpler
-const getBPMFromSources = async (track: Track, playlistId: string): Promise<SongBPMData> => {
+const getBPMFromSources = async (
+  track: Track,
+  playlistId: string
+): Promise<SongBPMData> => {
   console.log("[BPM Extract] Starting BPM extraction for track:", track.name);
 
   const trackData = TrackStorage.loadTrackData(playlistId, track.id);
@@ -95,7 +64,7 @@ const getBPMFromSources = async (track: Track, playlistId: string): Promise<Song
     return {
       songId: track.id,
       bpm: trackData.bpm.tempo,
-      source: "manual"
+      source: "manual",
     };
   }
 
@@ -105,7 +74,7 @@ const getBPMFromSources = async (track: Track, playlistId: string): Promise<Song
   return {
     songId: track.id,
     bpm: defaultBPM,
-    source: "manual"
+    source: "manual",
   };
 };
 
@@ -121,8 +90,13 @@ const saveTrackData = (
   segments: Segment[],
   bpm: TrackBPM
 ) => {
-  console.log("[Save Track Data] Saving:", { playlistId, songId, segments, bpm });
-  
+  console.log("[Save Track Data] Saving:", {
+    playlistId,
+    songId,
+    segments,
+    bpm,
+  });
+
   // Save segments and BPM separately
   TrackStorage.segments.save(playlistId, songId, segments);
   TrackStorage.bpm.save(playlistId, songId, bpm.tempo);
@@ -134,19 +108,21 @@ const LoadingState = () => {
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
       <div className="animate-spin h-8 w-8 border-2 border-white/50 rounded-full border-t-transparent" />
       <div className="text-sm text-gray-400">Loading track...</div>
-      </div>
+    </div>
   );
 };
 
 // Add browser detection
 const isSafari = () => {
   const ua = navigator.userAgent.toLowerCase();
-  return ua.includes('safari') && !ua.includes('chrome');
+  return ua.includes("safari") && !ua.includes("chrome");
 };
 
 const isIOS = () => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
 };
 
 // Update type definition
@@ -158,7 +134,7 @@ type SongBPMData = {
 
 // Add the cleanupPlayer function
 const cleanupPlayer = async (
-  player: any, 
+  player: any,
   deviceId: string,
   progressInterval: React.MutableRefObject<NodeJS.Timeout | null>,
   setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>,
@@ -185,7 +161,7 @@ const cleanupPlayer = async (
       hasStarted: false,
       track_window: { current_track: { id: "" } },
     });
-    
+
     setPlayer(null);
     setDeviceId("");
     setIsPlayerReady(false);
@@ -196,14 +172,17 @@ const cleanupPlayer = async (
       try {
         // Attempt to pause via SDK first
         await player.pause().catch(() => {});
-        
+
         // Then try API as backup
-        await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }).catch(() => {}); // Ignore API errors during cleanup
+        await fetch(
+          `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        ).catch(() => {}); // Ignore API errors during cleanup
       } catch {
         // Ignore any pause errors during cleanup
       }
@@ -211,13 +190,13 @@ const cleanupPlayer = async (
 
     // 4. Remove all event listeners
     try {
-      player.removeListener('ready');
-      player.removeListener('not_ready');
-      player.removeListener('player_state_changed');
-      player.removeListener('initialization_error');
-      player.removeListener('authentication_error');
-      player.removeListener('account_error');
-      player.removeListener('playback_error');
+      player.removeListener("ready");
+      player.removeListener("not_ready");
+      player.removeListener("player_state_changed");
+      player.removeListener("initialization_error");
+      player.removeListener("authentication_error");
+      player.removeListener("account_error");
+      player.removeListener("playback_error");
     } catch {
       // Ignore listener removal errors
     }
@@ -237,8 +216,6 @@ const cleanupPlayer = async (
 
 export default function SongSegmentEditor() {
   const params = useParams();
-  const playlistId = params.playlistId as string;
-  const songId = params.songId as string;
 
   // Update state declarations to use the new params
   const [track, setTrack] = useState<Track | null>(null);
@@ -273,10 +250,7 @@ export default function SongSegmentEditor() {
   // Move segments initialization to useEffect
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const { segments } = loadTrackData(
-        params.playlistId,
-        params.songId
-      );
+      const { segments } = loadTrackData(params.playlistId, params.songId);
       setSegments(segments);
     }
   }, [params.playlistId, params.songId]);
@@ -287,16 +261,13 @@ export default function SongSegmentEditor() {
     }
 
     // Try to load from storage first
-    const storedBPM = TrackStorage.bpm.load(
-      params.playlistId,
-      params.songId
-    );
-    
+    const storedBPM = TrackStorage.bpm.load(params.playlistId, params.songId);
+
     if (storedBPM) {
       console.log("[BPM Init] Using stored BPM:", storedBPM);
       return {
         tempo: storedBPM.tempo,
-        isManual: storedBPM.isManual
+        isManual: storedBPM.isManual,
       };
     }
 
@@ -325,55 +296,57 @@ export default function SongSegmentEditor() {
     console.log("[BPM Change] New BPM:", newBPM);
     setTrackBPM({
       tempo: newBPM,
-      isManual: true
+      isManual: true,
     });
   };
 
-
   // Update the cleanup function
-  const cleanup = useCallback((
-    player: any,
-    deviceId: string,
-    progressInterval: React.MutableRefObject<NodeJS.Timeout | null>,
-    setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>,
-    setPlayer: React.Dispatch<React.SetStateAction<any>>,
-    setDeviceId: React.Dispatch<React.SetStateAction<string>>,
-    setIsPlayerReady: React.Dispatch<React.SetStateAction<boolean>>
-  ) => {
-    if (!player) return;
+  const cleanup = useCallback(
+    (
+      player: any,
+      deviceId: string,
+      progressInterval: React.MutableRefObject<NodeJS.Timeout | null>,
+      setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>,
+      setPlayer: React.Dispatch<React.SetStateAction<any>>,
+      setDeviceId: React.Dispatch<React.SetStateAction<string>>,
+      setIsPlayerReady: React.Dispatch<React.SetStateAction<boolean>>
+    ) => {
+      if (!player) return;
 
-    console.log("[Player Cleanup] Starting cleanup");
-    
-    // Clear intervals first
-    if (progressInterval.current) {
-      clearInterval(progressInterval.current);
-      progressInterval.current = null;
-    }
+      console.log("[Player Cleanup] Starting cleanup");
 
-    // Remove listeners
-    player.removeListener('ready');
-    player.removeListener('not_ready');
-    player.removeListener('player_state_changed');
-    player.removeListener('initialization_error');
-    player.removeListener('authentication_error');
-    player.removeListener('account_error');
-    player.removeListener('playback_error');
+      // Clear intervals first
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+        progressInterval.current = null;
+      }
 
-    // Disconnect player
-    player.disconnect();
+      // Remove listeners
+      player.removeListener("ready");
+      player.removeListener("not_ready");
+      player.removeListener("player_state_changed");
+      player.removeListener("initialization_error");
+      player.removeListener("authentication_error");
+      player.removeListener("account_error");
+      player.removeListener("playback_error");
 
-    // Reset states
-    setPlaybackState({
-      isPlaying: false,
-      position: 0,
-      duration: 0,
-    });
-    setPlayer(null);
-    setDeviceId("");
-    setIsPlayerReady(false);
-    
-    console.log("[Player Cleanup] Cleanup completed");
-  }, []);
+      // Disconnect player
+      player.disconnect();
+
+      // Reset states
+      setPlaybackState({
+        isPlaying: false,
+        position: 0,
+        duration: 0,
+      });
+      setPlayer(null);
+      setDeviceId("");
+      setIsPlayerReady(false);
+
+      console.log("[Player Cleanup] Cleanup completed");
+    },
+    []
+  );
 
   // Update the player initialization effect
   useEffect(() => {
@@ -396,36 +369,39 @@ export default function SongSegmentEditor() {
           }
 
           const newPlayer = new window.Spotify.Player({
-            name: 'Workout Builder Web Player',
-            getOAuthToken: cb => cb(token),
+            name: "Workout Builder Web Player",
+            getOAuthToken: (cb) => cb(token),
           });
 
           // Add all event listeners
-          newPlayer.addListener('initialization_error', ({ message }) => {
+          newPlayer.addListener("initialization_error", ({ message }) => {
             console.error("[Player Error] Initialization failed:", message);
             setIsInitializing(false);
             initAttempts.current++;
           });
 
-          newPlayer.addListener('authentication_error', ({ message }) => {
+          newPlayer.addListener("authentication_error", ({ message }) => {
             console.error("[Player Error] Authentication failed:", message);
             setIsInitializing(false);
             router.push("/");
           });
 
-          newPlayer.addListener('ready', ({ device_id }) => {
+          newPlayer.addListener("ready", ({ device_id }) => {
             console.log("[Player Init] Ready with device ID:", device_id);
             setDeviceId(device_id);
             setIsPlayerReady(true);
             setIsInitializing(false);
           });
 
-          newPlayer.addListener('not_ready', ({ device_id }) => {
-            console.log("[Player Warning] Device ID has gone offline:", device_id);
+          newPlayer.addListener("not_ready", ({ device_id }) => {
+            console.log(
+              "[Player Warning] Device ID has gone offline:",
+              device_id
+            );
             setIsPlayerReady(false);
           });
 
-          newPlayer.addListener('player_state_changed', (state: any) => {
+          newPlayer.addListener("player_state_changed", (state: any) => {
             if (!state) return;
 
             console.log("[Player State] State changed:", state);
@@ -444,7 +420,7 @@ export default function SongSegmentEditor() {
                 progressInterval.current = setInterval(() => {
                   const position = Date.now() - startTime;
                   if (position <= state.duration) {
-                    setPlaybackState(prev => ({
+                    setPlaybackState((prev) => ({
                       ...prev,
                       position: position,
                     }));
@@ -467,14 +443,17 @@ export default function SongSegmentEditor() {
             });
           });
 
-          newPlayer.connect().then(() => {
-            console.log("[Player Init] Connected successfully");
-            setPlayer(newPlayer);
-          }).catch(error => {
-            console.error("[Player Init] Connection failed:", error);
-            setIsInitializing(false);
-            initAttempts.current++;
-          });
+          newPlayer
+            .connect()
+            .then(() => {
+              console.log("[Player Init] Connected successfully");
+              setPlayer(newPlayer);
+            })
+            .catch((error) => {
+              console.error("[Player Init] Connection failed:", error);
+              setIsInitializing(false);
+              initAttempts.current++;
+            });
         };
 
         // Only load the script if it's not already loaded
@@ -482,7 +461,7 @@ export default function SongSegmentEditor() {
           const script = document.createElement("script");
           script.src = "https://sdk.scdn.co/spotify-player.js";
           script.async = true;
-          
+
           script.onload = () => {
             console.log("[Player Init] Script loaded");
             setIsScriptLoaded(true);
@@ -493,7 +472,6 @@ export default function SongSegmentEditor() {
           // If Spotify is already available, trigger the callback manually
           window.onSpotifyWebPlaybackSDKReady();
         }
-
       } catch (error) {
         console.error("[Player Init] Error during initialization:", error);
         setIsInitializing(false);
@@ -524,7 +502,7 @@ export default function SongSegmentEditor() {
       console.log("[Track Load] Starting fetch:", {
         songId: params.songId,
       });
-      
+
       try {
         const accessToken = SpotifyAuthStorage.load();
         if (!accessToken) {
@@ -549,10 +527,7 @@ export default function SongSegmentEditor() {
         setTrack(data);
 
         // Try to load BPM from storage first
-        const storedBPM = TrackStorage.bpm.load(
-          params.playlistId,
-          data.id
-        );
+        const storedBPM = TrackStorage.bpm.load(params.playlistId, data.id);
         if (storedBPM) {
           console.log("[Track Load] Using stored BPM:", storedBPM);
           setTrackBPM({
@@ -581,13 +556,13 @@ export default function SongSegmentEditor() {
   // Update the save effect
   useEffect(() => {
     if (!track || !trackBPM) return;
-    
+
     console.log("[Save Effect] Saving track data:", {
       trackId: track.id,
       segments: segments.length,
       bpm: trackBPM.tempo, // Log just the tempo value
     });
-    
+
     // Debounce the save to prevent too many writes
     const timeoutId = setTimeout(() => {
       saveTrackData(params.playlistId, track.id, segments, trackBPM);
@@ -641,10 +616,10 @@ export default function SongSegmentEditor() {
     }
 
     const newSegment: Segment = {
-        id: crypto.randomUUID(),
-        startTime,
+      id: crypto.randomUUID(),
+      startTime,
       endTime,
-        title: `Segment ${segments.length + 1}`,
+      title: `Segment ${segments.length + 1}`,
       type: "SEATED_ROAD",
       intensity: 75,
     };
@@ -680,33 +655,33 @@ export default function SongSegmentEditor() {
           `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
           {
             method: "PUT",
-          headers: {
+            headers: {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            uris: [`spotify:track:${track.id}`],
-            position_ms: playbackState.position,
-          }),
+            },
+            body: JSON.stringify({
+              uris: [`spotify:track:${track.id}`],
+              position_ms: playbackState.position,
+            }),
           }
         );
-        
+
         // Wait a short moment for the player to update
         await new Promise((resolve) => setTimeout(resolve, 100));
         await player.resume();
-        
+
         setPlaybackState((prev) => ({
           ...prev,
           isPlaying: true,
         }));
       } else {
         await player.pause();
-        
+
         setPlaybackState((prev) => ({
           ...prev,
           isPlaying: false,
         }));
-        
+
         // Clear interval when paused
         if (progressInterval.current) {
           clearInterval(progressInterval.current);
@@ -721,7 +696,7 @@ export default function SongSegmentEditor() {
     (position: number) => {
       if (!player || !isPlayerReady) return;
 
-    // Ensure position is within bounds
+      // Ensure position is within bounds
       const boundedPosition = Math.max(
         0,
         Math.min(position, track?.duration_ms || 0)
@@ -731,7 +706,7 @@ export default function SongSegmentEditor() {
         .seek(boundedPosition)
         .then(() => {
           setPlaybackState((prev) => ({
-        ...prev,
+            ...prev,
             position: boundedPosition,
           }));
         })
@@ -770,15 +745,22 @@ export default function SongSegmentEditor() {
       const msPerPixel = track.duration_ms / timelineRect.width;
       const deltaTime = deltaX * msPerPixel;
 
-      let updatedTime = Math.max(0, Math.min(track.duration_ms, dragState.initialTime + deltaTime));
+      let updatedTime = Math.max(
+        0,
+        Math.min(track.duration_ms, dragState.initialTime + deltaTime)
+      );
 
       // Find adjacent segments for bounds checking
       const sortedSegments = segments
-        .filter(s => s.id !== segment.id)
+        .filter((s) => s.id !== segment.id)
         .sort((a, b) => a.startTime - b.startTime);
 
-      const prevSegment = sortedSegments.filter(s => s.endTime <= segment.startTime).pop();
-      const nextSegment = sortedSegments.filter(s => s.startTime >= segment.endTime).shift();
+      const prevSegment = sortedSegments
+        .filter((s) => s.endTime <= segment.startTime)
+        .pop();
+      const nextSegment = sortedSegments
+        .filter((s) => s.startTime >= segment.endTime)
+        .shift();
 
       if (dragState.type === "start") {
         // When dragging start, ensure we don't overlap with previous segment
@@ -787,8 +769,8 @@ export default function SongSegmentEditor() {
         const maxTime = segment.endTime - 1000; // Minimum 1 second duration
         updatedTime = Math.max(minTime, Math.min(maxTime, updatedTime));
 
-        setSegments(prev =>
-          prev.map(s =>
+        setSegments((prev) =>
+          prev.map((s) =>
             s.id === segment.id ? { ...s, startTime: updatedTime } : s
           )
         );
@@ -799,8 +781,8 @@ export default function SongSegmentEditor() {
         const maxTime = nextSegment ? nextSegment.startTime : track.duration_ms;
         updatedTime = Math.max(minTime, Math.min(maxTime, updatedTime));
 
-        setSegments(prev =>
-          prev.map(s =>
+        setSegments((prev) =>
+          prev.map((s) =>
             s.id === segment.id ? { ...s, endTime: updatedTime } : s
           )
         );
@@ -822,12 +804,12 @@ export default function SongSegmentEditor() {
       });
     };
 
-    window.addEventListener('mousemove', handleDragMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [dragState.segmentId, handleDragMove]);
 
@@ -837,8 +819,8 @@ export default function SongSegmentEditor() {
       if (!track) return;
 
       const bpmData = await getBPMFromSources(track, params.playlistId);
-      setTrackBPM({ 
-        tempo: bpmData.bpm, 
+      setTrackBPM({
+        tempo: bpmData.bpm,
         isManual: bpmData.source === "manual",
       });
     };
@@ -849,7 +831,9 @@ export default function SongSegmentEditor() {
   useEffect(() => {
     if (isIOS() || isSafari()) {
       // Show alternative playback message
-      alert("iOS/Safari users: Please ensure Spotify is playing on another device. This app will control that device.");
+      alert(
+        "iOS/Safari users: Please ensure Spotify is playing on another device. This app will control that device."
+      );
     }
     // ... rest of your initialization code
   }, []);
@@ -880,13 +864,13 @@ export default function SongSegmentEditor() {
 
     try {
       console.log("[Player] Stopping playback");
-      
+
       // First pause playback
       await player.pause();
-      
+
       // Then seek to beginning
       await player.seek(0);
-      
+
       // Update state
       setPlaybackState((prev) => ({
         ...prev,
@@ -911,7 +895,7 @@ export default function SongSegmentEditor() {
       if (player && isPlayerReady) {
         await handleStop();
       }
-      
+
       // Then clean up the player
       if (player) {
         await cleanupPlayer(
@@ -939,8 +923,8 @@ export default function SongSegmentEditor() {
 
     // Find the segment that contains the current position
     const currentSegment = segments.find(
-      segment => 
-        playbackState.position >= segment.startTime && 
+      (segment) =>
+        playbackState.position >= segment.startTime &&
         playbackState.position < segment.endTime
     );
 
@@ -950,20 +934,20 @@ export default function SongSegmentEditor() {
     const firstHalf: Segment = {
       ...currentSegment,
       id: uuidv4(),
-      endTime: playbackState.position
+      endTime: playbackState.position,
     };
 
     const secondHalf: Segment = {
       ...currentSegment,
       id: uuidv4(),
-      startTime: playbackState.position
+      startTime: playbackState.position,
     };
 
     // Replace the original segment with the two new segments
-    setSegments(prev => [
-      ...prev.filter(s => s.id !== currentSegment.id),
+    setSegments((prev) => [
+      ...prev.filter((s) => s.id !== currentSegment.id),
       firstHalf,
-      secondHalf
+      secondHalf,
     ]);
   };
 
@@ -971,9 +955,13 @@ export default function SongSegmentEditor() {
   const handleNextSegment = useCallback(() => {
     if (!segments.length) return;
 
-    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime);
+    const sortedSegments = [...segments].sort(
+      (a, b) => a.startTime - b.startTime
+    );
     const currentIndex = sortedSegments.findIndex(
-      segment => playbackState.position >= segment.startTime && playbackState.position < segment.endTime
+      (segment) =>
+        playbackState.position >= segment.startTime &&
+        playbackState.position < segment.endTime
     );
 
     const nextSegment = sortedSegments[currentIndex + 1] || sortedSegments[0];
@@ -985,12 +973,18 @@ export default function SongSegmentEditor() {
   const handlePreviousSegment = useCallback(() => {
     if (!segments.length) return;
 
-    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime);
+    const sortedSegments = [...segments].sort(
+      (a, b) => a.startTime - b.startTime
+    );
     const currentIndex = sortedSegments.findIndex(
-      segment => playbackState.position >= segment.startTime && playbackState.position < segment.endTime
+      (segment) =>
+        playbackState.position >= segment.startTime &&
+        playbackState.position < segment.endTime
     );
 
-    const prevSegment = sortedSegments[currentIndex - 1] || sortedSegments[sortedSegments.length - 1];
+    const prevSegment =
+      sortedSegments[currentIndex - 1] ||
+      sortedSegments[sortedSegments.length - 1];
     if (prevSegment) {
       handleSeek(prevSegment.startTime);
     }
@@ -1007,8 +1001,12 @@ export default function SongSegmentEditor() {
     if (!currentSegment) return;
 
     // Find the next segment
-    const sortedSegments = [...segments].sort((a, b) => a.startTime - b.startTime);
-    const currentIndex = sortedSegments.findIndex(s => s.id === currentSegment.id);
+    const sortedSegments = [...segments].sort(
+      (a, b) => a.startTime - b.startTime
+    );
+    const currentIndex = sortedSegments.findIndex(
+      (s) => s.id === currentSegment.id
+    );
     const nextSegment = sortedSegments[currentIndex + 1];
 
     if (!nextSegment) return;
@@ -1021,18 +1019,17 @@ export default function SongSegmentEditor() {
     };
 
     // Update segments list
-    setSegments(prev => [
-      ...prev.filter(s => s.id !== currentSegment.id && s.id !== nextSegment.id),
-      mergedSegment
+    setSegments((prev) => [
+      ...prev.filter(
+        (s) => s.id !== currentSegment.id && s.id !== nextSegment.id
+      ),
+      mergedSegment,
     ]);
   }, [currentSegment, segments]);
 
   if (loading || !track) {
     return (
-      <LoadingState
-      songId={params.songId} 
-      playlistId={params.playlistId} 
-      />
+      <LoadingState songId={params.songId} playlistId={params.playlistId} />
     );
   }
 
@@ -1042,7 +1039,7 @@ export default function SongSegmentEditor() {
       <div className="flex-none border-b border-white/10">
         {/* Header row */}
         <div className="p-4 flex items-center gap-4">
-          <button 
+          <button
             onClick={handleBackToPlaylist}
             className="p-2 hover:bg-white/10 rounded-full transition-colors"
           >
@@ -1051,7 +1048,7 @@ export default function SongSegmentEditor() {
           <div className="flex-1">
             <h1 className="font-semibold text-lg">{track.name}</h1>
             <p className="text-sm text-gray-400">
-              {track.artists.map(a => a.name).join(", ")}
+              {track.artists.map((a) => a.name).join(", ")}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -1075,7 +1072,7 @@ export default function SongSegmentEditor() {
           <div className="bg-black/20 p-4">
             <div className="flex gap-4 items-stretch">
               <WorkoutDisplay segment={currentSegment} />
-              <BeatCountdown 
+              <BeatCountdown
                 currentPosition={playbackState.position}
                 nextSegmentStart={nextSegment?.startTime ?? track.duration_ms}
                 bpm={trackBPM.tempo}
@@ -1086,11 +1083,14 @@ export default function SongSegmentEditor() {
             {/* Segment progress */}
             {currentSegment && (
               <div className="h-1 bg-white/10 mt-2 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-white/50 transition-all duration-1000"
-                  style={{ 
-                    width: `${((playbackState.position - currentSegment.startTime) /
-                      (currentSegment.endTime - currentSegment.startTime)) * 100}%` 
+                  style={{
+                    width: `${
+                      ((playbackState.position - currentSegment.startTime) /
+                        (currentSegment.endTime - currentSegment.startTime)) *
+                      100
+                    }%`,
                   }}
                 />
               </div>
@@ -1117,22 +1117,26 @@ export default function SongSegmentEditor() {
               onSplitSegment={splitSegmentAtCurrentPosition}
               onMergeSegment={handleMergeSegment}
               isReady={isPlayerReady}
-              canSplit={!!playbackState.position && segments.some(
-                segment => 
-                  playbackState.position >= segment.startTime && 
-                  playbackState.position < segment.endTime
-              )}
-              canMerge={!!currentSegment && segments.some(s => 
-                s.startTime === currentSegment.endTime
-              )}
+              canSplit={
+                !!playbackState.position &&
+                segments.some(
+                  (segment) =>
+                    playbackState.position >= segment.startTime &&
+                    playbackState.position < segment.endTime
+                )
+              }
+              canMerge={
+                !!currentSegment &&
+                segments.some((s) => s.startTime === currentSegment.endTime)
+              }
             />
           </div>
 
           {/* BPM visualization and timeline */}
           <div className="bg-white/5 rounded-lg p-4 flex-1 flex flex-col gap-4">
             {trackBPM && (
-              <BPMVisualization 
-                bpm={trackBPM.tempo} 
+              <BPMVisualization
+                bpm={trackBPM.tempo}
                 duration={track.duration_ms}
                 currentPosition={playbackState.position}
                 isPlaying={playbackState.isPlaying}
@@ -1152,8 +1156,8 @@ export default function SongSegmentEditor() {
               segment={currentSegment}
               onSegmentChange={(updates) => {
                 if (!currentSegment) return;
-                setSegments(prev =>
-                  prev.map(s =>
+                setSegments((prev) =>
+                  prev.map((s) =>
                     s.id === currentSegment.id ? { ...s, ...updates } : s
                   )
                 );
