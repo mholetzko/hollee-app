@@ -9,6 +9,26 @@ interface TrackData {
 }
 
 export const TrackStorage = {
+  tracks: {
+    load: (playlistId: string) => {
+      try {
+        const key = `playlist:${playlistId}:tracks`;
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : [];
+      } catch (error) {
+        console.error("[TrackStorage] Error loading tracks:", error);
+        return [];
+      }
+    },
+    save: (playlistId: string, tracks: any[]) => {
+      try {
+        const key = `playlist:${playlistId}:tracks`;
+        localStorage.setItem(key, JSON.stringify(tracks));
+      } catch (error) {
+        console.error("[TrackStorage] Error saving tracks:", error);
+      }
+    }
+  },
   segments: {
     save: (playlistId: string, trackId: string, segments: Segment[]) => {
       try {
