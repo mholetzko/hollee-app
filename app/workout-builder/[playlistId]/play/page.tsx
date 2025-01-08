@@ -2,7 +2,13 @@
 
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback, useMemo, use } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo
+} from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -24,8 +30,8 @@ import { LoadingState } from "../components/LoadingState";
 import { BeatCountdown } from "../components/BeatCountdown";
 import { SegmentTimeline } from "../components/SegmentTimeline";
 import { TrackStorage } from "../../../utils/storage/TrackStorage";
-import { SpotifyAuthStorage } from '../../../utils/storage/SpotifyAuthStorage';
-import { DeviceStorage } from '../../../utils/storage/DeviceStorage';
+import { SpotifyAuthStorage } from "../../../utils/storage/SpotifyAuthStorage";
+import { DeviceStorage } from "../../../utils/storage/DeviceStorage";
 
 // Add types if not already defined in types.ts
 declare global {
@@ -73,7 +79,9 @@ const WorkoutBadge = ({ type }: { type: WorkoutType }) => {
   };
 
   return (
-    <div className={`px-4 py-2 rounded-lg ${badgeStyles[type].bg} flex flex-col items-center justify-center`}>
+    <div
+      className={`px-4 py-2 rounded-lg ${badgeStyles[type].bg} flex flex-col items-center justify-center`}
+    >
       <div className={`text-2xl font-bold ${badgeStyles[type].text}`}>
         {WORKOUT_LABELS[type]}
       </div>
@@ -94,7 +102,9 @@ const SmallWorkoutBadge = ({ type }: { type: WorkoutType }) => {
   };
 
   return (
-    <div className={`px-3 py-1.5 rounded-md ${badgeStyles[type].bg} ${badgeStyles[type].text} text-sm font-medium`}>
+    <div
+      className={`px-3 py-1.5 rounded-md ${badgeStyles[type].bg} ${badgeStyles[type].text} text-sm font-medium`}
+    >
       {WORKOUT_LABELS[type]}
     </div>
   );
@@ -261,7 +271,7 @@ const GlobalWorkoutTimeline = ({
 
 // Add this cleanup function near your other utility functions
 const cleanupPlayer = async (
-  player: any, 
+  player: any,
   deviceId: string,
   progressInterval: React.MutableRefObject<NodeJS.Timeout | null>,
   setPlaybackState: React.Dispatch<React.SetStateAction<PlaybackState>>,
@@ -278,11 +288,14 @@ const cleanupPlayer = async (
     const token = SpotifyAuthStorage.load();
     if (token) {
       await Promise.all([
-        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(console.error),
-        player.pause().catch(console.error)
+        fetch(
+          `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`,
+          {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        ).catch(console.error),
+        player.pause().catch(console.error),
       ]);
     }
 
@@ -293,13 +306,13 @@ const cleanupPlayer = async (
     }
 
     // 3. Remove all event listeners
-    player.removeListener('ready');
-    player.removeListener('not_ready');
-    player.removeListener('player_state_changed');
-    player.removeListener('initialization_error');
-    player.removeListener('authentication_error');
-    player.removeListener('account_error');
-    player.removeListener('playback_error');
+    player.removeListener("ready");
+    player.removeListener("not_ready");
+    player.removeListener("player_state_changed");
+    player.removeListener("initialization_error");
+    player.removeListener("authentication_error");
+    player.removeListener("account_error");
+    player.removeListener("playback_error");
 
     // 4. Disconnect the player
     await player.disconnect();
@@ -312,7 +325,7 @@ const cleanupPlayer = async (
       hasStarted: false,
       track_window: { current_track: { id: "" } },
     });
-    
+
     setPlayer(null);
     setDeviceId("");
     setIsPlayerReady(false);
@@ -327,10 +340,9 @@ const cleanupPlayer = async (
 export default function WorkoutPlayer({
   params,
 }: {
-  params: { playlistId: string }
+  params: { playlistId: string };
 }) {
-  const resolvedParams = use(params);  // Unwrap the params Promise
-  const playlistId = resolvedParams.playlistId;  // Use the resolved params
+  const playlistId = params.playlistId; // Use the resolved params
 
   // All state declarations first
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -342,7 +354,10 @@ export default function WorkoutPlayer({
   const [player, setPlayer] = useState<any>(null);
   const [deviceId, setDeviceId] = useState<string>("");
   const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const [trackBPM, setTrackBPM] = useState<TrackBPM>({ tempo: 128, isManual: true });
+  const [trackBPM, setTrackBPM] = useState<TrackBPM>({
+    tempo: 128,
+    isManual: true,
+  });
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     isPlaying: false,
     position: 0,
@@ -353,7 +368,10 @@ export default function WorkoutPlayer({
   const [currentTrackStartTime, setCurrentTrackStartTime] = useState(0);
 
   // Add currentTrack memoization
-  const currentTrack = useMemo(() => tracks[currentTrackIndex], [tracks, currentTrackIndex]);
+  const currentTrack = useMemo(
+    () => tracks[currentTrackIndex],
+    [tracks, currentTrackIndex]
+  );
 
   // All refs next
   const positionRef = useRef<number>(0);
@@ -370,79 +388,88 @@ export default function WorkoutPlayer({
   const [showingGo, setShowingGo] = useState(false);
 
   // Define playTrack first since it's used by playNextTrack
-  const playTrack = useCallback(async (trackId: string) => {
-    try {
-      if (!player || !deviceId) {
-        throw new Error("Player or device ID not available");
-      }
-
-      const token = SpotifyAuthStorage.load();
-      if (!token) {
-        throw new Error("No access token available");
-      }
-
-      // First pause and seek to 0
-      await Promise.all([
-        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`, {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }).catch(() => {}),
-        fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=0&device_id=${deviceId}`, {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }).catch(() => {})
-      ]);
-
-      // Wait for pause and seek to complete
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Then start playing from beginning
-      const response = await fetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            uris: [`spotify:track:${trackId}`],
-            position_ms: 0,
-          }),
+  const playTrack = useCallback(
+    async (trackId: string) => {
+      try {
+        if (!player || !deviceId) {
+          throw new Error("Player or device ID not available");
         }
-      );
 
-      if (response.status === 204) {
-        // Reset all position tracking
-        startTimeRef.current = Date.now();
-        positionRef.current = 0;
-        
-        // Force player to seek to beginning
-        await player.seek(0);
-        
-        setPlaybackState((prev) => ({
-          ...prev,
-          isPlaying: true,
-          position: 0,
-          hasStarted: true,
-          track_window: {
-            current_track: { id: trackId },
-          },
-        }));
+        const token = SpotifyAuthStorage.load();
+        if (!token) {
+          throw new Error("No access token available");
+        }
 
-        return;
+        // First pause and seek to 0
+        await Promise.all([
+          fetch(
+            `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          ).catch(() => {}),
+          fetch(
+            `https://api.spotify.com/v1/me/player/seek?position_ms=0&device_id=${deviceId}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          ).catch(() => {}),
+        ]);
+
+        // Wait for pause and seek to complete
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Then start playing from beginning
+        const response = await fetch(
+          `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              uris: [`spotify:track:${trackId}`],
+              position_ms: 0,
+            }),
+          }
+        );
+
+        if (response.status === 204) {
+          // Reset all position tracking
+          startTimeRef.current = Date.now();
+          positionRef.current = 0;
+
+          // Force player to seek to beginning
+          await player.seek(0);
+
+          setPlaybackState((prev) => ({
+            ...prev,
+            isPlaying: true,
+            position: 0,
+            hasStarted: true,
+            track_window: {
+              current_track: { id: trackId },
+            },
+          }));
+
+          return;
+        }
+
+        throw new Error(`Failed to play track: ${response.status}`);
+      } catch (error) {
+        console.error("[playTrack] Error:", error);
+        throw error;
       }
-
-      throw new Error(`Failed to play track: ${response.status}`);
-    } catch (error) {
-      console.error("[playTrack] Error:", error);
-      throw error;
-    }
-  }, [player, deviceId]);
+    },
+    [player, deviceId]
+  );
 
   // Then define playNextTrack
   const playNextTrack = useCallback(async () => {
@@ -463,10 +490,10 @@ export default function WorkoutPlayer({
       }
 
       setCurrentTrackIndex(nextTrackIndex);
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const nextTrack = tracksRef.current[nextTrackIndex];
       await playTrack(nextTrack.id);
-      
+
       console.log("[playNextTrack] Successfully started next track");
     } catch (error) {
       console.error("[playNextTrack] Error playing next track:", error);
@@ -499,7 +526,7 @@ export default function WorkoutPlayer({
           progressInterval.current = setInterval(() => {
             const position = Date.now() - startTime;
             if (position <= currentTrack?.duration_ms) {
-              setPlaybackState(prev => ({
+              setPlaybackState((prev) => ({
                 ...prev,
                 position: position,
               }));
@@ -536,7 +563,9 @@ export default function WorkoutPlayer({
   const togglePlayback = async () => {
     try {
       if (!player || !deviceId || !currentTrack) {
-        console.error("[togglePlayback] Player, device ID, or track not available");
+        console.error(
+          "[togglePlayback] Player, device ID, or track not available"
+        );
         return;
       }
 
@@ -587,10 +616,12 @@ export default function WorkoutPlayer({
     const segments = TrackStorage.segments.load(playlistId, trackId);
     const storedBPM = TrackStorage.bpm.load(playlistId, trackId);
 
-    const bpmData = storedBPM ? { 
-      tempo: Number(storedBPM.tempo),
-      isManual: storedBPM.source === 'manual' 
-    } : null;
+    const bpmData = storedBPM
+      ? {
+          tempo: Number(storedBPM.tempo),
+          isManual: storedBPM.source === "manual",
+        }
+      : null;
 
     return {
       segments,
@@ -613,7 +644,7 @@ export default function WorkoutPlayer({
       try {
         const accessToken = SpotifyAuthStorage.load();
         if (!accessToken) {
-          router.push('/');
+          router.push("/");
           return;
         }
 
@@ -627,19 +658,19 @@ export default function WorkoutPlayer({
         );
 
         if (!response.ok) {
-          throw new Error('Failed to fetch tracks');
+          throw new Error("Failed to fetch tracks");
         }
 
         const data = await response.json();
         const trackList = data.items
           .map((item: any) => item.track)
           .filter((track: any) => track !== null);
-        
+
         setTracks(trackList);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching tracks:', error);
-        setError('Failed to load tracks');
+        console.error("Error fetching tracks:", error);
+        setError("Failed to load tracks");
         setLoading(false);
       }
     };
@@ -665,29 +696,48 @@ export default function WorkoutPlayer({
       });
 
       // Add more detailed logging
-      player.addListener("initialization_error", ({ message }: { message: string }) => {
-        console.error("[Player Init] Initialization error:", message);
-        setError(`Player initialization failed: ${message}`);
-      });
+      player.addListener(
+        "initialization_error",
+        ({ message }: { message: string }) => {
+          console.error("[Player Init] Initialization error:", message);
+          setError(`Player initialization failed: ${message}`);
+        }
+      );
 
-      player.addListener("authentication_error", ({ message }: { message: string }) => {
-        console.error("[Player Init] Authentication error:", message);
-        setError(`Authentication failed: ${message}`);
-      });
+      player.addListener(
+        "authentication_error",
+        ({ message }: { message: string }) => {
+          console.error("[Player Init] Authentication error:", message);
+          setError(`Authentication failed: ${message}`);
+        }
+      );
 
-      player.addListener("account_error", ({ message }: { message: string }) => {
-        console.error("[Player Init] Account error:", message);
-        setError(`Account error: ${message}`);
-      });
+      player.addListener(
+        "account_error",
+        ({ message }: { message: string }) => {
+          console.error("[Player Init] Account error:", message);
+          setError(`Account error: ${message}`);
+        }
+      );
 
-      player.addListener("playback_error", ({ message }: { message: string }) => {
-        console.error("[Player Init] Playback error:", message);
-      });
+      player.addListener(
+        "playback_error",
+        ({ message }: { message: string }) => {
+          console.error("[Player Init] Playback error:", message);
+        }
+      );
 
       player.addListener("ready", ({ device_id }: { device_id: string }) => {
         console.log("[Player Init] Ready with device ID:", device_id);
         setDeviceId(device_id);
-        DeviceStorage.save([{ id: device_id, is_active: true, name: 'Web Player', type: 'Computer' }]);
+        DeviceStorage.save([
+          {
+            id: device_id,
+            is_active: true,
+            name: "Web Player",
+            type: "Computer",
+          },
+        ]);
         setIsPlayerReady(true);
         setLoading(false);
       });
@@ -731,7 +781,7 @@ export default function WorkoutPlayer({
       const script = document.createElement("script");
       script.src = "https://sdk.scdn.co/spotify-player.js";
       script.async = true;
-      
+
       script.onload = () => {
         console.log("[Player Init] Script loaded");
         setIsScriptLoaded(true);
@@ -749,9 +799,9 @@ export default function WorkoutPlayer({
       if (player) {
         console.log("[Player Cleanup] Starting cleanup");
         cleanupPlayer(
-          player, 
-          deviceId, 
-          progressInterval, 
+          player,
+          deviceId,
+          progressInterval,
           setPlaybackState,
           setPlayer,
           setDeviceId,
@@ -794,13 +844,13 @@ export default function WorkoutPlayer({
         }
 
         // Wait a moment for pause to take effect
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Perform full cleanup
         await cleanupPlayer(
-          player, 
-          deviceId, 
-          progressInterval, 
+          player,
+          deviceId,
+          progressInterval,
           setPlaybackState,
           setPlayer,
           setDeviceId,
@@ -808,16 +858,16 @@ export default function WorkoutPlayer({
         );
 
         // Wait another moment for cleanup to settle
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       console.log("[handleBack] Navigation sequence complete, redirecting...");
-      
+
       // Use replace instead of push to prevent back navigation
       if (playlistId) {
         router.replace(`/workout-builder/${playlistId}`);
       } else {
-        router.replace('/dashboard');
+        router.replace("/dashboard");
       }
     } catch (error) {
       console.error("[handleBack] Error during navigation:", error);
@@ -835,13 +885,13 @@ export default function WorkoutPlayer({
     if (storedBPM) {
       setTrackBPM({
         tempo: Number(storedBPM.tempo),
-        isManual: storedBPM.isManual
+        isManual: storedBPM.isManual,
       });
     } else {
       // Set a default BPM if none is found
       setTrackBPM({
         tempo: 128,
-        isManual: false
+        isManual: false,
       });
     }
   }, [currentTrack, playlistId]);
@@ -851,11 +901,12 @@ export default function WorkoutPlayer({
     if (playbackState.isPlaying && playbackState.position > 0 && player) {
       const checkPosition = async () => {
         const state = await player.getCurrentState();
-        if (state && state.position > 1000) { // If position is more than 1 second in
+        if (state && state.position > 1000) {
+          // If position is more than 1 second in
           await player.seek(0);
-          setPlaybackState(prev => ({
+          setPlaybackState((prev) => ({
             ...prev,
-            position: 0
+            position: 0,
           }));
         }
       };
@@ -890,7 +941,13 @@ export default function WorkoutPlayer({
     }, 100);
 
     return () => clearInterval(checkInterval);
-  }, [trackBPM.tempo, playbackState.isPlaying, playbackState.position, segments, showingGo]);
+  }, [
+    trackBPM.tempo,
+    playbackState.isPlaying,
+    playbackState.position,
+    segments,
+    showingGo,
+  ]);
 
   // 3. Return your JSX
   if (error) {
@@ -999,7 +1056,9 @@ export default function WorkoutPlayer({
                   />
                 )}
                 <div>
-                  <h1 className="text-2xl font-bold mb-1">{currentTrack.name}</h1>
+                  <h1 className="text-2xl font-bold mb-1">
+                    {currentTrack.name}
+                  </h1>
                   <p className="text-sm text-gray-400">
                     {currentTrack.artists.map((a) => a.name).join(", ")}
                   </p>
@@ -1132,7 +1191,10 @@ export default function WorkoutPlayer({
               const storedBPM = TrackStorage.bpm.load(playlistId, track.id);
               const trackBPMData = storedBPM?.tempo ?? null;
 
-              const trackSegments = TrackStorage.segments.load(playlistId, track.id);
+              const trackSegments = TrackStorage.segments.load(
+                playlistId,
+                track.id
+              );
               const trackWorkoutTypes = Array.from(
                 new Set(trackSegments.map((s: Segment) => s.type))
               );
@@ -1141,7 +1203,9 @@ export default function WorkoutPlayer({
                 <div
                   key={uniqueTrackKey}
                   className={`flex flex-col p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
-                      ${actualIndex === currentTrackIndex ? "bg-white/10" : ""}`}
+                      ${
+                        actualIndex === currentTrackIndex ? "bg-white/10" : ""
+                      }`}
                   onClick={() => {
                     setCurrentTrackIndex(actualIndex);
                     playTrack(track.id);
@@ -1171,11 +1235,14 @@ export default function WorkoutPlayer({
 
                     <div className="flex items-center gap-3 text-sm text-gray-400">
                       <div className="font-mono">
-                        {trackBPMData ? `${Math.round(trackBPMData)}` : "--"} BPM
+                        {trackBPMData ? `${Math.round(trackBPMData)}` : "--"}{" "}
+                        BPM
                       </div>
                       <div>
                         {Math.floor(track.duration_ms / 60000)}:
-                        {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, "0")}
+                        {String(
+                          Math.floor((track.duration_ms % 60000) / 1000)
+                        ).padStart(2, "0")}
                       </div>
                     </div>
                   </div>
