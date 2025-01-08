@@ -1,15 +1,11 @@
-import { WorkoutType } from "../workout-builder/[playlistId]/types";
+
 import enduranceWorkout from "./endurance-workout.json";
 
 export const EXAMPLE_PLAYLISTS = {
-  INTERVAL_1: {
-    id: "4Ez60VYkFSjjlAFoVKu0tG",
-    name: "Extensive Interval Workout 1",
-    description: "High-intensity interval training with varied segments",
-  },
-  INTERVAL_2: {
+
+  INTERVAL: {
     id: "0CcFnTwaImNpq7ycqAam8I",
-    name: "Extensive Interval Workout 2",
+    name: "Extensive Interval Workout",
     description:
       "A 60-minute journey from warm-up over sprints to high intensity climbs",
   },
@@ -17,8 +13,6 @@ export const EXAMPLE_PLAYLISTS = {
 
 // Example workout configurations
 export const EXAMPLE_CONFIGS = {
-  [EXAMPLE_PLAYLISTS.INTERVAL_1.id]: {
-    // ... your HIIT configuration
-  },
-  [EXAMPLE_PLAYLISTS.INTERVAL_2.id]: enduranceWorkout,
+
+  [EXAMPLE_PLAYLISTS.INTERVAL.id]: enduranceWorkout,
 };
