@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Footer } from "@/components/Footer";
 import { SpotifyAuthStorage } from "../utils/storage/SpotifyAuthStorage";
 import { TracklistStorage } from "../utils/storage/TracklistStorage";
-import { TrackStorage } from "@/app/workout-builder/[playlistId]/utils/storage";
+import { TrackStorage } from "@/app/utils/storage/TrackStorage";
 import Image from "next/image";
 
 interface Playlist {
@@ -29,24 +29,12 @@ const getWorkoutStatus = (playlistId: string) => {
     return "none";
   }
 
-  // Count tracks that have segments configured
-  let configuredTracksCount = 0;
-
-  // Get all track IDs from the playlist's tracks
-
+  // Get all segments for this playlist
   const segments = TrackStorage.segments.loadAll(playlistId);
   const trackIds = Object.keys(segments);
-  configuredTracksCount = trackIds.filter((trackId) =>
+  const configuredTracksCount = trackIds.filter((trackId) =>
     TrackStorage.segments.hasData(playlistId, trackId)
   ).length;
-
-  console.log(`Playlist ${playlistId} status check:`, {
-    playlistId,
-    totalTracks,
-    segmentsConfigured: configuredTracksCount,
-    trackIds,
-    segments: JSON.stringify(TrackStorage.segments),
-  });
 
   if (configuredTracksCount === 0) {
     return "none";
@@ -54,14 +42,7 @@ const getWorkoutStatus = (playlistId: string) => {
 
   // Calculate completion percentage
   const completionPercentage = (configuredTracksCount / totalTracks) * 100;
-
-  // If 80% or more tracks have segments, consider it ready
-  if (completionPercentage >= 80) {
-    return "ready";
-  }
-
-  // If some tracks have segments but less than 80%, it's in progress
-  return "in-progress";
+  return completionPercentage >= 80 ? "ready" : "in-progress";
 };
 
 export default function DashboardPage() {
