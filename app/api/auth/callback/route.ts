@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 function FQDN() {
-  return process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+  return process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI
+    ? `https://${process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI}`
     : "http://localhost:3000";
 }
 
