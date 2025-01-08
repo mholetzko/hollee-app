@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState , use } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
@@ -28,8 +28,7 @@ const hasSavedSegments = (playlistId: string, songId: string): boolean => {
   return TrackStorage.segments.hasData(playlistId, songId);
 };
 
-export default function WorkoutBuilder({ params }: { params: Promise<{ playlistId: string }> }) {
-  const resolvedParams = use(params)
+export default function WorkoutBuilder({ params }: { params: { playlistId: string } }) {
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -48,7 +47,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
         }
 
         const response = await fetch(
-          `https://api.spotify.com/v1/playlists/${resolvedParams.playlistId}/tracks`,
+          `https://api.spotify.com/v1/playlists/${params.playlistId}/tracks`,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -68,7 +67,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
         setTracks(trackList)
 
         // Store the total tracks count
-        PlaylistStorage.storeTotalTracksCount(resolvedParams.playlistId, trackList.length);
+        PlaylistStorage.storeTotalTracksCount(params.playlistId, trackList.length);
 
       } catch (error) {
         console.error('Error fetching tracks:', error)
@@ -78,16 +77,16 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
     }
 
     fetchPlaylistTracks()
-  }, [resolvedParams.playlistId, router])
+  }, [params.playlistId, router])
 
   const handleExport = () => {
-    const config = WorkoutConfigStorage.exportConfig(resolvedParams.playlistId, tracks);
+    const config = WorkoutConfigStorage.exportConfig(params.playlistId, tracks);
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
     const a = document.createElement('a');
     a.href = url;
-    a.download = `workout-configs-${resolvedParams.playlistId}.json`;
+    a.download = `workout-configs-${params.playlistId}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -100,7 +99,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
     try {
       // Now you have type safety when working with the config data
-      const result = await WorkoutConfigStorage.importConfig(resolvedParams.playlistId, file);
+      const result = await WorkoutConfigStorage.importConfig(params.playlistId, file);
       
       setImportMessage({
         type: result.success ? 'success' : 'error',
@@ -117,9 +116,9 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
   useEffect(() => {
     if (tracks.length > 0) {
-      TracklistStorage.save(resolvedParams.playlistId, tracks.length);
+      TracklistStorage.save(params.playlistId, tracks.length);
     }
-  }, [tracks.length, resolvedParams.playlistId]);
+  }, [tracks.length, params.playlistId]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -149,12 +148,12 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center gap-4">
                     <h1 className="text-3xl font-bold">Workout Builder</h1>
-                    {tracks.some(track => hasSavedSegments(resolvedParams.playlistId, track.id)) && (
+                    {tracks.some(track => hasSavedSegments(params.playlistId, track.id)) && (
                       <Button
                         variant="default"
                         size="lg"
                         className="bg-green-500 hover:bg-green-600"
-                        onClick={() => router.push(`/workout-builder/${resolvedParams.playlistId}/play`)}
+                        onClick={() => router.push(`/workout-builder/${params.playlistId}/play`)}
                       >
                         <svg 
                           className="w-5 h-5 mr-2" 
@@ -249,7 +248,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
                     const uniqueTrackKey = `${track.id}-position-${index}`;
                     
                     // Get saved segments and BPM for this track using TrackStorage
-                    const trackData = TrackStorage.loadTrackData(resolvedParams.playlistId, track.id);
+                    const trackData = TrackStorage.loadTrackData(params.playlistId, track.id);
                     console.log(`[Track ${track.id}] Loaded data:`, trackData);
                     const trackBPMData = trackData.bpm?.tempo;
                     const trackSegments = trackData.segments;
@@ -311,7 +310,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
                               variant="ghost"
                               size="sm"
                               onClick={() => {
-                                router.push(`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`);
+                                router.push(`/workout-builder/${params.playlistId}/song/${track.id}`);
                               }}
                             >
                               {hasConfiguration ? "Edit" : "Configure"}

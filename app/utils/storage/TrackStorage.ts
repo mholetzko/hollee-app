@@ -1,4 +1,5 @@
 import { Segment } from "../../workout-builder/[playlistId]/types";
+import { Track } from "../../workout-builder/[playlistId]/types";
 
 interface TrackData {
   segments: Segment[];
@@ -20,7 +21,7 @@ export const TrackStorage = {
         return [];
       }
     },
-    save: (playlistId: string, tracks: any[]) => {
+    save: (playlistId: string, tracks: Track[]) => {
       try {
         const key = `playlist:${playlistId}:tracks`;
         localStorage.setItem(key, JSON.stringify(tracks));
