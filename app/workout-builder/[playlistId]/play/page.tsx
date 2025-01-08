@@ -9,7 +9,7 @@ import React, {
   useCallback,
   useMemo
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -337,12 +337,9 @@ const cleanupPlayer = async (
   }
 };
 
-export default function WorkoutPlayer({
-  params,
-}: {
-  params: { playlistId: string };
-}) {
-  const playlistId = params.playlistId; // Use the resolved params
+export default function WorkoutPlayer() {
+  const params = useParams();
+  const playlistId = params.playlistId as string;
 
   // All state declarations first
   const [tracks, setTracks] = useState<Track[]>([]);

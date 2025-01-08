@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { TrackStorage } from '../../../../utils/storage/TrackStorage';
 import { SpotifyAuthStorage } from '../../../../utils/storage/SpotifyAuthStorage';
 import { BPMVisualization } from "../../components/BPMVisualization";
@@ -235,7 +235,12 @@ const cleanupPlayer = async (
   }
 };
 
-export default function SongSegmentEditor({ params }: { params: any }) {
+export default function SongSegmentEditor() {
+  const params = useParams();
+  const playlistId = params.playlistId as string;
+  const songId = params.songId as string;
+
+  // Update state declarations to use the new params
   const [track, setTrack] = useState<Track | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
