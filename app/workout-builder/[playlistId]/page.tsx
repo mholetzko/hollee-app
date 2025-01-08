@@ -18,6 +18,7 @@ import Image from 'next/image'
 import { PlaylistOverview } from './components/PlaylistOverview';
 import { Toaster, toast } from 'react-hot-toast'
 import { ExportImportButtons } from './components/ExportImportButtons';
+import { ExampleWorkoutStorage } from '@/app/utils/storage/ExampleWorkoutStorage';
 
 interface Track {
   id: string
@@ -118,6 +119,12 @@ export default function WorkoutBuilder({ params }: { params: { playlistId: strin
   useEffect(() => {
     if (tracks.length > 0) {
       TracklistStorage.save(params.playlistId, tracks.length);
+    }
+  }, [tracks.length, params.playlistId]);
+
+  useEffect(() => {
+    if (tracks.length > 0) {
+      ExampleWorkoutStorage.initializeIfExample(params.playlistId);
     }
   }, [tracks.length, params.playlistId]);
 

@@ -80,5 +80,56 @@ export const WorkoutConfigStorage = {
     });
 
     return config;
+  },
+
+  hasConfig(playlistId: string): boolean {
+    try {
+      // Check if we have any segments stored for this playlist
+      const allSegments = localStorage.getItem(`playlist_${playlistId}_segments`);
+      if (!allSegments) return false;
+
+      // Parse the segments to verify it's valid data
+      const parsedSegments = JSON.parse(allSegments);
+      return Object.keys(parsedSegments).length > 0;
+    } catch (error) {
+      console.error('Error checking config existence:', error);
+      return false;
+    }
+  },
+
+  importConfigData: async (playlistId: string, config: any) => {
+    try {
+      // Validate the config structure
+      if (!config.tracks || typeof config.tracks !== 'object') {
+        throw new Error('Invalid configuration format');
+      }
+
+      // Import each track's data
+      Object.entries(config.tracks).forEach(([key, trackData]: [string, any]) => {
+        const [, trackId] = key.split('_');
+        if (!trackId) return;
+
+        // Save segments if they exist
+        if (trackData.segments) {
+          TrackStorage.segments.save(playlistId, trackId, trackData.segments);
+        }
+
+        // Save BPM if it exists
+        if (trackData.bpm?.tempo) {
+          TrackStorage.bpm.save(playlistId, trackId, trackData.bpm.tempo);
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Configuration imported successfully'
+      };
+    } catch (error) {
+      console.error('Error importing config:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to import configuration'
+      };
+    }
   }
 }; 

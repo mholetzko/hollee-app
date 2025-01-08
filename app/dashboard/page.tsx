@@ -9,6 +9,7 @@ import { SpotifyAuthStorage } from "../utils/storage/SpotifyAuthStorage";
 import { TracklistStorage } from "../utils/storage/TracklistStorage";
 import { TrackStorage } from "@/app/utils/storage/TrackStorage";
 import Image from "next/image";
+import { ExampleWorkouts } from './components/ExampleWorkouts';
 
 interface Playlist {
   id: string;
@@ -237,7 +238,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 mb-16">
             {playlists.map((playlist) => {
               const workoutStatus = getWorkoutStatus(playlist.id);
               
@@ -340,6 +341,17 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="border-t border-white/10 my-12" />
+
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent mb-8">
+              Example Workouts
+            </h2>
+            <div className="bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-8 backdrop-blur-sm border border-white/10">
+              <ExampleWorkouts />
+            </div>
           </div>
         </div>
       </div>

@@ -1,0 +1,1265 @@
+{
+    "exportDate": "2025-01-05T21:56:39.572Z",
+    "playlistId": "0CcFnTwaImNpq7ycqAam8I",
+    "tracks": {
+      "0CcFnTwaImNpq7ycqAam8I_0bXpmJyHHYPk6QBFj25bYF": {
+        "track": {
+          "id": "0bXpmJyHHYPk6QBFj25bYF",
+          "name": "Intro",
+          "artists": [
+            "The xx"
+          ],
+          "duration_ms": 127920
+        },
+        "bpm": {
+          "tempo": 100,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "f251630c-c857-47e3-967f-4e7579c4bc26",
+            "startTime": 0,
+            "endTime": 51236.77419354838,
+            "title": "Warm-Up",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "c65ac3ac-79d0-4e84-b8a2-4a9de26a00db",
+            "startTime": 51236.77419354838,
+            "endTime": 81236.77419354838,
+            "title": "Segment 2",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "fca51cec-4bc8-4a3c-b572-7d37d0684fe6",
+            "startTime": 81236.77419354838,
+            "endTime": 111236.77419354838,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "96a0759a-205f-4502-8324-a1a8b841e0fa",
+            "startTime": 111236.77419354838,
+            "endTime": 127920,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_4M1FSIvUcbTqcRPj886Zgc": {
+        "track": {
+          "id": "4M1FSIvUcbTqcRPj886Zgc",
+          "name": "Orchestre Numerique",
+          "artists": [
+            "Xila"
+          ],
+          "duration_ms": 447826
+        },
+        "bpm": {
+          "tempo": 105,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "6252b3ec-e7b8-4387-9b3e-6dbfe474429b",
+            "startTime": 0,
+            "endTime": 447826,
+            "title": "Pre-Warmup",
+            "type": "SEATED_ROAD",
+            "intensity": 20
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_4WeIzJ7V8Tszyzp6acCbLr": {
+        "track": {
+          "id": "4WeIzJ7V8Tszyzp6acCbLr",
+          "name": "Almseemorgen",
+          "artists": [
+            "Thomas Lemmer",
+            "Christoph Sebastian Pabst"
+          ],
+          "duration_ms": 262962
+        },
+        "bpm": {
+          "tempo": 100,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "c38d9728-0126-4fc3-9390-c437dbf3b057",
+            "startTime": 0,
+            "endTime": 262962,
+            "title": "Pre-Warmup",
+            "type": "SEATED_ROAD",
+            "intensity": 25
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_2bFyCuTjkKM8Gu4sPtUh7T": {
+        "track": {
+          "id": "2bFyCuTjkKM8Gu4sPtUh7T",
+          "name": "Californication - Extended Mix",
+          "artists": [
+            "Futago",
+            "Amy Kirkpatrick"
+          ],
+          "duration_ms": 251868
+        },
+        "bpm": {
+          "tempo": 100,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "4403cfaf-79e8-4c42-a28b-940ef0f9ea3d",
+            "startTime": 0,
+            "endTime": 101224.96721311475,
+            "title": "Warmup",
+            "type": "SEATED_ROAD",
+            "intensity": 30
+          },
+          {
+            "id": "f2c2030f-fe46-4a37-841a-4339ac26964c",
+            "startTime": 101224.96721311475,
+            "endTime": 251868,
+            "title": "Warmup",
+            "type": "SEATED_ROAD",
+            "intensity": 60
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_31nfdEooLEq7dn3UMcIeB5": {
+        "track": {
+          "id": "31nfdEooLEq7dn3UMcIeB5",
+          "name": "Vois sur ton chemin - Techno Mix",
+          "artists": [
+            "BENNETT"
+          ],
+          "duration_ms": 178156
+        },
+        "bpm": {
+          "tempo": 69,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "2bf2f10d-84cb-4167-817e-e4c42b6df239",
+            "startTime": 0,
+            "endTime": 34455.47020976556,
+            "title": "REINKOMMEN",
+            "type": "SEATED_ROAD",
+            "intensity": 65
+          },
+          {
+            "id": "00935c9d-5d8b-4b46-abb4-da7c9b79ffe4",
+            "startTime": 34455.47020976556,
+            "endTime": 61462.25784417416,
+            "title": "JUMPS",
+            "type": "JUMPS",
+            "intensity": 75
+          },
+          {
+            "id": "16879b71-6030-41d3-912a-93a15b5d8da3",
+            "startTime": 61462.25784417416,
+            "endTime": 75418.63956460428,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "06faed54-9c57-478f-b6c9-5b1325eee039",
+            "startTime": 75418.63956460428,
+            "endTime": 104341.08311299137,
+            "title": "Segment 4",
+            "type": "JUMPS",
+            "intensity": 75
+          },
+          {
+            "id": "d7107b66-3def-4678-9ed9-ebdedf1f640a",
+            "startTime": 104341.08311299137,
+            "endTime": 131587.32773664728,
+            "title": "Segment 5",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "265d2b0f-a3b3-40d9-81fb-1c2f6f519ccb",
+            "startTime": 131587.32773664728,
+            "endTime": 172961.5347258946,
+            "title": "Segment 6",
+            "type": "JUMPS",
+            "intensity": 75
+          },
+          {
+            "id": "16af175f-1ec6-4bae-befe-44ad6f9eaf1a",
+            "startTime": 172961.5347258946,
+            "endTime": 178156,
+            "title": "Segment 7",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_4bJ7hDIjOucR0hGDEaVBOr": {
+        "track": {
+          "id": "4bJ7hDIjOucR0hGDEaVBOr",
+          "name": "Best of Me - Radio Edit",
+          "artists": [
+            "ARTBAT",
+            "Sailor & I"
+          ],
+          "duration_ms": 229440
+        },
+        "bpm": {
+          "tempo": 63,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "7a2badcf-d586-40a4-8cf8-dc01b7d52fdf",
+            "startTime": 0,
+            "endTime": 32929.67741935484,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "8c976d4b-c923-4130-9bb9-b04e7d68e7fc",
+            "startTime": 32929.67741935484,
+            "endTime": 63546.45161290323,
+            "title": "Segment 2",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "b7cdf922-a91e-4c13-bf64-d8b57ed16c8c",
+            "startTime": 63546.45161290323,
+            "endTime": 94471.6129032258,
+            "title": "Segment 3",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "38b90f5f-669e-47f0-969c-f6f25852b3b0",
+            "startTime": 94471.6129032258,
+            "endTime": 129868.3870967742,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "73a69deb-75db-46a5-a6ea-d540718cd016",
+            "startTime": 129868.3870967742,
+            "endTime": 163106.4516129032,
+            "title": "Segment 5",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "00ddfe3f-de99-4361-aec6-33623d87d8d2",
+            "startTime": 163106.4516129032,
+            "endTime": 209913.5483870968,
+            "title": "Segment 6",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "244b6c04-b83f-4bee-bb10-e370a038a0bf",
+            "startTime": 210000,
+            "endTime": 229440,
+            "title": "Segment 8",
+            "type": "SEATED_ROAD",
+            "intensity": 65
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_5BqFpUSAVMnxebiKfEizeP": {
+        "track": {
+          "id": "5BqFpUSAVMnxebiKfEizeP",
+          "name": "Tabu",
+          "artists": [
+            "ARTBAT"
+          ],
+          "duration_ms": 493518
+        },
+        "bpm": {
+          "tempo": 61,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "a9653191-ed4c-41a0-aac8-44a17ced2412",
+            "startTime": 0,
+            "endTime": 60513.209677419356,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "9ed120cf-8e52-4938-80df-2df943aa7415",
+            "startTime": 60513.209677419356,
+            "endTime": 120694.75403225808,
+            "title": "Segment 2",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "e124f676-8413-4ae4-bb1b-ab80cc1ac472",
+            "startTime": 120694.75403225808,
+            "endTime": 180876.2983870968,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "5c50eca7-ba0c-4733-bf8f-d24e40d1f5e7",
+            "startTime": 180876.2983870968,
+            "endTime": 241389.50806451615,
+            "title": "Segment 4",
+            "type": "STANDING_CLIMB",
+            "intensity": 75
+          },
+          {
+            "id": "5d73d65b-8b4f-4e52-af17-aacf833062e0",
+            "startTime": 241389.50806451615,
+            "endTime": 301571.05241935485,
+            "title": "Segment 5",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "f0539b9c-0020-4b5c-9a48-bc71178fd6b9",
+            "startTime": 301571.05241935485,
+            "endTime": 422115.68548387097,
+            "title": "Segment 6",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "ce7ac1ef-20f3-47f3-9d70-a69bf458c263",
+            "startTime": 422115.68548387097,
+            "endTime": 452723.16532258067,
+            "title": "Segment 7",
+            "type": "STANDING_CLIMB",
+            "intensity": 100
+          },
+          {
+            "id": "a21d4cf7-4153-4a85-a7af-c64add8a181c",
+            "startTime": 452723.16532258067,
+            "endTime": 493518,
+            "title": "Segment 8",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_5eLSXWSJphV4u3YZCNXySE": {
+        "track": {
+          "id": "5eLSXWSJphV4u3YZCNXySE",
+          "name": "Escape",
+          "artists": [
+            "Eli Brown"
+          ],
+          "duration_ms": 190866
+        },
+        "bpm": {
+          "tempo": 63,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "2d6a10f5-7da5-49da-87c3-d2cc7c95f0ef",
+            "startTime": 0,
+            "endTime": 45777.229838709674,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 65
+          },
+          {
+            "id": "cf775b9d-4d0a-4267-b55c-022127f93539",
+            "startTime": 45777.229838709674,
+            "endTime": 74622.79838709677,
+            "title": "Segment 2",
+            "type": "STANDING_CLIMB",
+            "intensity": 75
+          },
+          {
+            "id": "ef80b290-580b-48f1-9695-6319b785a86d",
+            "startTime": 74622.79838709677,
+            "endTime": 90641.35080645162,
+            "title": "Segment 3",
+            "type": "JUMPS",
+            "intensity": 75
+          },
+          {
+            "id": "38bf32a1-a307-408e-9b48-1e177383618d",
+            "startTime": 90641.35080645162,
+            "endTime": 108968.76612903227,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "fb6a428e-3561-4799-8499-92c1cc5112c6",
+            "startTime": 108968.76612903227,
+            "endTime": 139225.30645161294,
+            "title": "Segment 5",
+            "type": "SEATED_ROAD",
+            "intensity": 90
+          },
+          {
+            "id": "3ca0fdeb-e94f-4ed4-aa5f-9a41f86b1e4f",
+            "startTime": 139225.30645161294,
+            "endTime": 169353.57661290327,
+            "title": "Segment 6",
+            "type": "JUMPS",
+            "intensity": 90
+          },
+          {
+            "id": "f53ddda0-14e1-4e44-b71c-6ac177a3cfd3",
+            "startTime": 169353.57661290327,
+            "endTime": 185115.58870967745,
+            "title": "Segment 7",
+            "type": "STANDING_CLIMB",
+            "intensity": 90
+          },
+          {
+            "id": "50ae39a9-cd73-4023-b572-8303b1d770e7",
+            "startTime": 185115.58870967745,
+            "endTime": 190866,
+            "title": "Segment 8",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_1hmI7H4W0ChPH6vfa9i2CQ": {
+        "track": {
+          "id": "1hmI7H4W0ChPH6vfa9i2CQ",
+          "name": "Prada (feat. D-Block Europe) - Valexus Remix",
+          "artists": [
+            "cassö",
+            "RAYE",
+            "Valexus",
+            "D-Block Europe"
+          ],
+          "duration_ms": 135125
+        },
+        "bpm": {
+          "tempo": 76,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "4d4b9bae-faf3-4e4f-b7bf-76e5d9fb83ff",
+            "startTime": 0,
+            "endTime": 37446.404569892475,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 70
+          },
+          {
+            "id": "dbfaaea6-d559-4308-a8ef-c954c51cc097",
+            "startTime": 37446.404569892475,
+            "endTime": 62088.62567204301,
+            "title": "Segment 2",
+            "type": "JUMPS",
+            "intensity": 75
+          },
+          {
+            "id": "69dbec70-5c23-4500-8585-0a2eda25737d",
+            "startTime": 62088.62567204301,
+            "endTime": 87548.13508064517,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "40ab32b5-4302-4c0e-bfbc-c525d06fe595",
+            "startTime": 87548.13508064517,
+            "endTime": 105833.66935483871,
+            "title": "Segment 4",
+            "type": "JUMPS",
+            "intensity": 85
+          },
+          {
+            "id": "a4dd2ca0-02e6-431f-bc29-0eda2ca38012",
+            "startTime": 105833.66935483871,
+            "endTime": 130947.74865591398,
+            "title": "Segment 5",
+            "type": "SEATED_CLIMB",
+            "intensity": 90
+          },
+          {
+            "id": "fec9ee88-6680-417d-a903-82ccea422a9d",
+            "startTime": 130947.74865591398,
+            "endTime": 135125,
+            "title": "Segment 6",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_4stpA04LZHBCx3YejNdodF": {
+        "track": {
+          "id": "4stpA04LZHBCx3YejNdodF",
+          "name": "Caroline",
+          "artists": [
+            "CID",
+            "Truth x Lies"
+          ],
+          "duration_ms": 180278
+        },
+        "bpm": {
+          "tempo": 63,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "cf92a10c-38e5-48f9-bd89-7551ae0306e0",
+            "startTime": 0,
+            "endTime": 22003.798387096773,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "ca409b3e-d9c3-48d9-89dc-c38ffa90a1c9",
+            "startTime": 22003.798387096773,
+            "endTime": 53821.116935483864,
+            "title": "DOUBLE SPEEEED",
+            "type": "JUMPS",
+            "intensity": 75
+          },
+          {
+            "id": "49778e3c-e131-4def-a864-7e118e56c6a6",
+            "startTime": 53821.116935483864,
+            "endTime": 68676.79569892472,
+            "title": "Segment 3",
+            "type": "STANDING_CLIMB",
+            "intensity": 75
+          },
+          {
+            "id": "73081c3b-1aca-4fe0-bb90-b89ccc6c59c8",
+            "startTime": 68676.79569892472,
+            "endTime": 131146.22043010753,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "ea38d7cd-b509-48b5-8749-8bacb8bd492a",
+            "startTime": 131146.22043010753,
+            "endTime": 165386.63037634408,
+            "title": "DOUBLE SPEEEED",
+            "type": "JUMPS",
+            "intensity": 75
+          },
+          {
+            "id": "2dd69845-f973-4112-b240-6bc9027d1132",
+            "startTime": 165386.63037634408,
+            "endTime": 180278,
+            "title": "Segment 6",
+            "type": "SEATED_ROAD",
+            "intensity": 60
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_5Axl2Rjg3wOC3JHju1Gess": {
+        "track": {
+          "id": "5Axl2Rjg3wOC3JHju1Gess",
+          "name": "Freestyler (Rock The Microphone)",
+          "artists": [
+            "Lost Frequencies",
+            "Bomfunk MC's"
+          ],
+          "duration_ms": 174000
+        },
+        "bpm": {
+          "tempo": 80,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "2f0567e1-e649-47b7-bdaa-913cee68a7d8",
+            "startTime": 0,
+            "endTime": 11641.129032258053,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "0e89422a-36b5-4004-96b2-000e0eb22f26",
+            "startTime": 11641.129032258053,
+            "endTime": 48487.90322580644,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "d1b3921a-67c7-4318-99dd-971d84f013e8",
+            "startTime": 48487.90322580644,
+            "endTime": 78487.90322580644,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "adb17e40-5416-4b5b-9093-357f43288d68",
+            "startTime": 78487.90322580644,
+            "endTime": 83580.64516129032,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "01d54503-0969-4d6b-a295-010c214f2fc1",
+            "startTime": 83580.64516129032,
+            "endTime": 107733.87096774192,
+            "title": "Segment 5",
+            "type": "WAVES",
+            "intensity": 85
+          },
+          {
+            "id": "a81ee284-8ccd-49f7-9105-a8886b9ad030",
+            "startTime": 107733.87096774192,
+            "endTime": 131419.3548387097,
+            "title": "FREEEEZE",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "5cebc755-8421-441c-870c-0fbe169ff6c3",
+            "startTime": 131419.3548387097,
+            "endTime": 143294.3548387097,
+            "title": "Segment 7",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "020b6f0f-5235-4ead-a7b1-6627e1f97ffa",
+            "startTime": 143294.3548387097,
+            "endTime": 168383.06451612903,
+            "title": "Segment 8",
+            "type": "WAVES",
+            "intensity": 85
+          },
+          {
+            "id": "83533b0c-0c0c-4400-b8ad-fadccd279c0b",
+            "startTime": 168383.06451612903,
+            "endTime": 174000,
+            "title": "Segment 9",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_1TjZTPkdqO3OCo7DX10a0l": {
+        "track": {
+          "id": "1TjZTPkdqO3OCo7DX10a0l",
+          "name": "Venezia",
+          "artists": [
+            "AKKI (DE)"
+          ],
+          "duration_ms": 232941
+        },
+        "bpm": {
+          "tempo": 68,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "41c35014-a2dc-498a-984a-8786130f674c",
+            "startTime": 0,
+            "endTime": 30000,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "e8bf043d-f173-48d7-92e5-08390d74554a",
+            "startTime": 30000,
+            "endTime": 55303.60887096774,
+            "title": "Segment 2",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "a78584aa-98b1-49da-9322-2b12a4d7d6fe",
+            "startTime": 55303.60887096774,
+            "endTime": 70901.34274193548,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "ea7f8691-3912-4019-b6ec-3c3346101352",
+            "startTime": 70901.34274193548,
+            "endTime": 84620.52016129032,
+            "title": "Segment 4",
+            "type": "STANDING_CLIMB",
+            "intensity": 75
+          },
+          {
+            "id": "7945ea29-3f49-4a8a-8577-4d522cf77557",
+            "startTime": 84620.52016129032,
+            "endTime": 113055.05645161291,
+            "title": "Segment 5",
+            "type": "WAVES",
+            "intensity": 75
+          },
+          {
+            "id": "e7d1c58f-813e-48f2-81a1-9a855f53eb70",
+            "startTime": 113055.05645161291,
+            "endTime": 140237.22177419355,
+            "title": "Segment 6",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "81a98269-72ba-4445-aae1-5655ef8fb4eb",
+            "startTime": 140237.22177419355,
+            "endTime": 168984.85080645158,
+            "title": "Segment 7",
+            "type": "SEATED_ROAD",
+            "intensity": 90
+          },
+          {
+            "id": "eb7ad4fe-ff29-4103-8dd3-6afa64592f3f",
+            "startTime": 168984.85080645158,
+            "endTime": 183330.2137096774,
+            "title": "Segment 8",
+            "type": "STANDING_CLIMB",
+            "intensity": 90
+          },
+          {
+            "id": "7aee9512-90f6-4172-9f21-82fef05bf360",
+            "startTime": 183330.2137096774,
+            "endTime": 224758.09879032258,
+            "title": "Segment 9",
+            "type": "WAVES",
+            "intensity": 90
+          },
+          {
+            "id": "36a7f3dc-0eae-4c21-a767-51ca76c1ae2d",
+            "startTime": 224758.09879032258,
+            "endTime": 232941,
+            "title": "Segment 10",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_0RebyNcuZeIIiHEYgO2lp6": {
+        "track": {
+          "id": "0RebyNcuZeIIiHEYgO2lp6",
+          "name": "Time After Time",
+          "artists": [
+            "Hypnova",
+            "Lemon Plant"
+          ],
+          "duration_ms": 195022
+        },
+        "bpm": {
+          "tempo": 120,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "f8ed8f3d-12d3-4b15-b607-7ba5df448785",
+            "startTime": 0,
+            "endTime": 195022,
+            "title": "PLS",
+            "type": "SEATED_ROAD",
+            "intensity": 0
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_3GDfRvFyeOq2VtH4AXiqIS": {
+        "track": {
+          "id": "3GDfRvFyeOq2VtH4AXiqIS",
+          "name": "Changes - Extended Mix",
+          "artists": [
+            "Ranji",
+            "TOX1C",
+            "Eytan Peled"
+          ],
+          "duration_ms": 368695
+        },
+        "bpm": {
+          "tempo": 70,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "a1bdaf42-e078-44bf-ac84-13cdec24616e",
+            "startTime": 0,
+            "endTime": 60205.964381720434,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "a21883d1-cf26-4017-a809-f2265027a028",
+            "startTime": 60205.964381720434,
+            "endTime": 69640.31586021507,
+            "title": "Segment 2",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "74b0084b-ae36-4f5c-8325-901afdb3f31b",
+            "startTime": 69640.31586021507,
+            "endTime": 124913.76344086023,
+            "title": "DOUBLE SPEED",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "cb24d9d1-e38c-4f94-baf6-901fab02879a",
+            "startTime": 124913.76344086023,
+            "endTime": 154913.76344086023,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "da28b9cd-f504-4e40-9641-7e93b533e485",
+            "startTime": 154913.76344086023,
+            "endTime": 181444.85887096776,
+            "title": "Segment 5",
+            "type": "SEATED_ROAD",
+            "intensity": 80
+          },
+          {
+            "id": "836d8f2a-91da-438c-970f-e442f86cc891",
+            "startTime": 181444.85887096776,
+            "endTime": 235479.41196236562,
+            "title": "DOUBLE SPEED",
+            "type": "STANDING_CLIMB",
+            "intensity": 90
+          },
+          {
+            "id": "9c7ad866-4977-4240-840b-cfe69556a765",
+            "startTime": 235479.41196236562,
+            "endTime": 306362.93010752683,
+            "title": "Segment 7",
+            "type": "SEATED_ROAD",
+            "intensity": 90
+          },
+          {
+            "id": "4f11ca78-f4d9-42c9-bd9e-4c2cd47cc2ce",
+            "startTime": 306362.93010752683,
+            "endTime": 347265.20161290315,
+            "title": "DOUBLE SPEED",
+            "type": "SEATED_ROAD",
+            "intensity": 90
+          },
+          {
+            "id": "37c3ecb0-43bf-4ccf-ac54-c608b5ee44c5",
+            "startTime": 347265.20161290315,
+            "endTime": 368695,
+            "title": "Segment 9",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_7L9dnRiCjMuADHpdL5WMrO": {
+        "track": {
+          "id": "7L9dnRiCjMuADHpdL5WMrO",
+          "name": "Desolation",
+          "artists": [
+            "NYMESYS"
+          ],
+          "duration_ms": 236666
+        },
+        "bpm": {
+          "tempo": 72,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "06843a9e-53aa-49fd-b0ab-404b77d40915",
+            "startTime": 0,
+            "endTime": 19025.5685483871,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "c85659f7-d79f-4a1d-9079-37053c829216",
+            "startTime": 19025.5685483871,
+            "endTime": 59681.90053763441,
+            "title": "Segment 2",
+            "type": "STANDING_CLIMB",
+            "intensity": 75
+          },
+          {
+            "id": "ad9283b2-5df0-4b4b-94fd-c67a67e5ae0a",
+            "startTime": 59681.90053763441,
+            "endTime": 99861.08333333333,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "0be4cef4-14ca-4425-84c9-3499fc613afe",
+            "startTime": 99861.08333333333,
+            "endTime": 110138.91666666667,
+            "title": "Segment 4",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "a5a61898-c2e0-4a75-a92b-888d1263d418",
+            "startTime": 110138.91666666667,
+            "endTime": 141252.26478494622,
+            "title": "Segment 5",
+            "type": "JUMPS",
+            "intensity": 85
+          },
+          {
+            "id": "8bf7be28-7fad-449b-bfb7-919e91aee50b",
+            "startTime": 141252.26478494622,
+            "endTime": 166321.72311827954,
+            "title": "Segment 6",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "e2419359-6c0c-49ac-9e34-c13393462f28",
+            "startTime": 166321.72311827954,
+            "endTime": 192504.52956989245,
+            "title": "Segment 7",
+            "type": "JUMPS",
+            "intensity": 85
+          },
+          {
+            "id": "d9fb4f08-9bdc-4188-85ca-00d66ea992c4",
+            "startTime": 192504.52956989245,
+            "endTime": 221391.18145161285,
+            "title": "Segment 8",
+            "type": "STANDING_CLIMB",
+            "intensity": 85
+          },
+          {
+            "id": "87538574-db4f-4116-b6ce-953d91c486ef",
+            "startTime": 221391.18145161285,
+            "endTime": 236666,
+            "title": "Segment 9",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_3wsW1Xo5W9b0VrjLUfQEjm": {
+        "track": {
+          "id": "3wsW1Xo5W9b0VrjLUfQEjm",
+          "name": "River Flows In You (feat. Jasper Forks)",
+          "artists": [
+            "Alex Christensen",
+            "The Berlin Orchestra",
+            "Gestört aber GeiL",
+            "Jasper Forks"
+          ],
+          "duration_ms": 135653
+        },
+        "bpm": {
+          "tempo": 120,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "dfac2559-3737-4cdb-a422-328baeb512ad",
+            "startTime": 0,
+            "endTime": 135653,
+            "title": "PLS",
+            "type": "PLS",
+            "intensity": 0
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_5khhW1FljW18yzbsSWffsO": {
+        "track": {
+          "id": "5khhW1FljW18yzbsSWffsO",
+          "name": "Bel Mercy - Faustix Remix",
+          "artists": [
+            "Jengi",
+            "Faustix"
+          ],
+          "duration_ms": 170538
+        },
+        "bpm": {
+          "tempo": 65,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "eb3be29f-290b-4232-b534-ca2b5f42b474",
+            "startTime": 0,
+            "endTime": 30000,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "61212807-bcca-4db9-a3de-6a8f8b214a91",
+            "startTime": 30000,
+            "endTime": 58395.475806451606,
+            "title": "Segment 2",
+            "type": "WAVES",
+            "intensity": 75
+          },
+          {
+            "id": "27d50143-61c5-4f26-8b1d-e283efe77c58",
+            "startTime": 58395.475806451606,
+            "endTime": 91489.91532258065,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "9cd7d049-1d12-42a1-89a0-28a5431a2265",
+            "startTime": 91489.91532258065,
+            "endTime": 121719.13306451612,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "daf2511f-bc07-4b31-8831-d99e00b062d3",
+            "startTime": 121719.13306451612,
+            "endTime": 150000,
+            "title": "Segment 5",
+            "type": "WAVES",
+            "intensity": 85
+          },
+          {
+            "id": "4bd68c10-ec3d-42be-9897-44922fb1fa0f",
+            "startTime": 150000,
+            "endTime": 170538,
+            "title": "Segment 6",
+            "type": "SEATED_ROAD",
+            "intensity": 60
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_7MCNurIGh8Hg9SYaCPP9vv": {
+        "track": {
+          "id": "7MCNurIGh8Hg9SYaCPP9vv",
+          "name": "Ich will nur dass du weißt - IIVEN Remix",
+          "artists": [
+            "SDP",
+            "IIVEN",
+            "NESS"
+          ],
+          "duration_ms": 156387
+        },
+        "bpm": {
+          "tempo": 77,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "6c13b32d-1f0f-4667-8ae5-552c3eaf0f16",
+            "startTime": 0,
+            "endTime": 30000,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          },
+          {
+            "id": "4e78fe36-dfac-4f98-a71a-bd5274390df5",
+            "startTime": 30000,
+            "endTime": 50856.405241935485,
+            "title": "Segment 2",
+            "type": "STANDING_CLIMB",
+            "intensity": 75
+          },
+          {
+            "id": "aa1d0eaf-a09e-4735-9215-49b8ba820bb8",
+            "startTime": 50856.405241935485,
+            "endTime": 84009.36895161291,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 75
+          },
+          {
+            "id": "a329daf0-5a96-4804-8e85-103e244e272b",
+            "startTime": 84009.36895161291,
+            "endTime": 111171.70161290323,
+            "title": "Segment 4",
+            "type": "STANDING_CLIMB",
+            "intensity": 75
+          },
+          {
+            "id": "2af21ec4-ca15-47d5-bd57-24dbc67558d1",
+            "startTime": 111171.70161290323,
+            "endTime": 120362.14112903224,
+            "title": "Segment 5",
+            "type": "SEATED_ROAD",
+            "intensity": 95
+          },
+          {
+            "id": "a7e1ffeb-7083-4cf8-8c0e-97fe8be9c281",
+            "startTime": 120362.14112903224,
+            "endTime": 149626.44959677415,
+            "title": "Segment 6",
+            "type": "STANDING_CLIMB",
+            "intensity": 100
+          },
+          {
+            "id": "17168671-24ef-4596-b866-20ed4b709476",
+            "startTime": 149626.44959677415,
+            "endTime": 156387,
+            "title": "Segment 7",
+            "type": "SEATED_ROAD",
+            "intensity": 90
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_3AjSfp5FDvwtMU9XBsbS8j": {
+        "track": {
+          "id": "3AjSfp5FDvwtMU9XBsbS8j",
+          "name": "Push Up - Main Edit",
+          "artists": [
+            "Creeds"
+          ],
+          "duration_ms": 139300
+        },
+        "bpm": {
+          "tempo": 75,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "97d4b286-3c71-4b8a-a011-a329f14bc047",
+            "startTime": 0,
+            "endTime": 25038.37365591398,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 70
+          },
+          {
+            "id": "e05ad583-e365-4333-a85c-f7978838e0e8",
+            "startTime": 25038.37365591398,
+            "endTime": 50732.0564516129,
+            "title": "Segment 2",
+            "type": "SEATED_ROAD",
+            "intensity": 85
+          },
+          {
+            "id": "d0441f71-35e5-433f-847e-060eb4f4607f",
+            "startTime": 50732.0564516129,
+            "endTime": 76800.20161290323,
+            "title": "Segment 3",
+            "type": "SEATED_ROAD",
+            "intensity": 90
+          },
+          {
+            "id": "d137c980-4e9c-4592-9a3e-89a9673b7c52",
+            "startTime": 76800.20161290323,
+            "endTime": 96128.02419354838,
+            "title": "Segment 4",
+            "type": "SEATED_ROAD",
+            "intensity": 95
+          },
+          {
+            "id": "2a39c318-5949-41d6-a15f-e45d9fcd97ba",
+            "startTime": 96128.02419354838,
+            "endTime": 107872.98387096773,
+            "title": "Segment 5",
+            "type": "SEATED_ROAD",
+            "intensity": 100
+          },
+          {
+            "id": "df375536-9e78-43b1-9e3f-46c86911ff0d",
+            "startTime": 107872.98387096773,
+            "endTime": 139300,
+            "title": "Segment 6",
+            "type": "SEATED_ROAD",
+            "intensity": -1
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_6EXi6ZqTITKGtVBKqbphjL": {
+        "track": {
+          "id": "6EXi6ZqTITKGtVBKqbphjL",
+          "name": "Porcelain",
+          "artists": [
+            "Moby"
+          ],
+          "duration_ms": 241160
+        },
+        "bpm": {
+          "tempo": 128,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "8722d80f-601c-4930-a230-a690e05e0714",
+            "startTime": 0,
+            "endTime": 241160,
+            "title": "Segment 1",
+            "type": "SEATED_ROAD",
+            "intensity": 55
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_3ZSqMer9RLSglvi18bWXYV": {
+        "track": {
+          "id": "3ZSqMer9RLSglvi18bWXYV",
+          "name": "Sky and Sand",
+          "artists": [
+            "Paul Kalkbrenner",
+            "Fritz Kalkbrenner"
+          ],
+          "duration_ms": 230500
+        },
+        "bpm": {
+          "tempo": 128,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "bef877c7-abf6-4b23-845f-e50c9bbdd798",
+            "startTime": 0,
+            "endTime": 230500,
+            "title": "Segment 1",
+            "type": "PLS",
+            "intensity": 0
+          }
+        ]
+      },
+      "0CcFnTwaImNpq7ycqAam8I_6wp5tGVNQYpKJPo1s3WUEY": {
+        "track": {
+          "id": "6wp5tGVNQYpKJPo1s3WUEY",
+          "name": "Liquid Spirit - Claptone Remix",
+          "artists": [
+            "Gregory Porter",
+            "Claptone"
+          ],
+          "duration_ms": 383552
+        },
+        "bpm": {
+          "tempo": 128,
+          "isManual": true
+        },
+        "segments": [
+          {
+            "id": "90db01f9-b5cd-4a43-be5e-61b59c90c6f1",
+            "startTime": 0,
+            "endTime": 383552,
+            "title": "Segment 1",
+            "type": "PLS",
+            "intensity": 0
+          }
+        ]
+      }
+    }
+  }
