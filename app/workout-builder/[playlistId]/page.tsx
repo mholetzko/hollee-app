@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
@@ -16,6 +16,8 @@ import { PlaylistStorage } from '../../utils/storage/PlaylistStorage'
 import { SpotifyAuthStorage } from '../../utils/storage/SpotifyAuthStorage'
 import Image from 'next/image'
 import { PlaylistOverview } from './components/PlaylistOverview';
+import { Toaster, toast } from 'react-hot-toast'
+import { ExportImportButtons } from './components/ExportImportButtons';
 
 interface Track {
   id: string
@@ -29,8 +31,7 @@ const hasSavedSegments = (playlistId: string, songId: string): boolean => {
   return TrackStorage.segments.hasData(playlistId, songId);
 };
 
-export default function WorkoutBuilder({ params }: { params: Promise<{ playlistId: string }> }) {
-  const resolvedParams = use(params);
+export default function WorkoutBuilder({ params }: { params: { playlistId: string } }) {
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -49,7 +50,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
         }
 
         const response = await fetch(
-          `https://api.spotify.com/v1/playlists/${resolvedParams.playlistId}/tracks`,
+          `https://api.spotify.com/v1/playlists/${params.playlistId}/tracks`,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -69,7 +70,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
         setTracks(trackList)
 
         // Store the total tracks count
-        PlaylistStorage.storeTotalTracksCount(resolvedParams.playlistId, trackList.length);
+        PlaylistStorage.storeTotalTracksCount(params.playlistId, trackList.length);
 
       } catch (error) {
         console.error('Error fetching tracks:', error)
@@ -79,48 +80,46 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
     }
 
     fetchPlaylistTracks()
-  }, [resolvedParams.playlistId, router])
+  }, [params.playlistId, router])
 
   const handleExport = () => {
-    const config = WorkoutConfigStorage.exportConfig(resolvedParams.playlistId, tracks);
+    const config = WorkoutConfigStorage.exportConfig(params.playlistId, tracks);
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
     const a = document.createElement('a');
     a.href = url;
-    a.download = `workout-configs-${resolvedParams.playlistId}.json`;
+    a.download = `workout-configs-${params.playlistId}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleImport = async (file: File) => {
     try {
-      // Now you have type safety when working with the config data
-      const result = await WorkoutConfigStorage.importConfig(resolvedParams.playlistId, file);
+      const result = await WorkoutConfigStorage.importConfig(params.playlistId, file);
       
-      setImportMessage({
-        type: result.success ? 'success' : 'error',
-        text: result.message
-      });
+      if (result.success) {
+        toast.success(result.message);
+        // Refresh the page after successful import
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        toast.error(result.message);
+      }
     } catch (error) {
       console.error('Error importing config:', error);
-      setImportMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to import configuration'
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to import configuration');
     }
   };
 
   useEffect(() => {
     if (tracks.length > 0) {
-      TracklistStorage.save(resolvedParams.playlistId, tracks.length);
+      TracklistStorage.save(params.playlistId, tracks.length);
     }
-  }, [tracks.length, resolvedParams.playlistId]);
+  }, [tracks.length, params.playlistId]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -128,6 +127,32 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: 'rgba(255, 255, 255, 0.1)',
+            color: 'white',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(8px)',
+          },
+          success: {
+            duration: 2000,
+            iconTheme: {
+              primary: '#fff',
+              secondary: 'rgba(0, 0, 0, 0.8)',
+            },
+          },
+          error: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#ff4b4b',
+              secondary: 'rgba(0, 0, 0, 0.8)',
+            },
+          },
+        }}
+      />
       {/* Sticky header */}
       <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-sm border-b border-white/10">
         <div className="flex items-center justify-between px-8 py-4">
@@ -141,40 +166,46 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
             Back to Dashboard
           </Button>
 
-          {tracks.some(track => hasSavedSegments(resolvedParams.playlistId, track.id)) && (
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-green-500 hover:bg-green-600"
-              onClick={() => router.push(`/workout-builder/${resolvedParams.playlistId}/play`)}
-            >
-              <svg 
-                className="w-5 h-5 mr-2" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
+          <div className="flex items-center gap-4">
+            {tracks.some(track => hasSavedSegments(params.playlistId, track.id)) && (
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-white/10 hover:bg-white/20 text-white"
+                onClick={() => router.push(`/workout-builder/${params.playlistId}/play`)}
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" 
-                />
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
-                />
-              </svg>
-              Start Workout
-            </Button>
-          )}
+                <svg 
+                  className="w-5 h-5 mr-2" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" 
+                  />
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                  />
+                </svg>
+                Start Workout
+              </Button>
+            )}
+            <ExportImportButtons
+              onExport={handleExport}
+              onImport={handleImport}
+            />
+          </div>
         </div>
       </div>
 
       <div className="flex-1">
-        <PlaylistOverview playlistId={resolvedParams.playlistId} tracks={tracks} />
+        <PlaylistOverview playlistId={params.playlistId} tracks={tracks} />
 
         <div className="px-8">
           <div className="grid gap-4">
@@ -182,7 +213,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
               const uniqueTrackKey = `${track.id}-position-${index}`;
               
               // Get saved segments and BPM for this track using TrackStorage
-              const trackData = TrackStorage.loadTrackData(resolvedParams.playlistId, track.id);
+              const trackData = TrackStorage.loadTrackData(params.playlistId, track.id);
               console.log(`[Track ${track.id}] Loaded data:`, trackData);
               const trackBPMData = trackData.bpm?.tempo;
               const trackSegments = trackData.segments;
@@ -244,7 +275,7 @@ export default function WorkoutBuilder({ params }: { params: Promise<{ playlistI
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          router.push(`/workout-builder/${resolvedParams.playlistId}/song/${track.id}`);
+                          router.push(`/workout-builder/${params.playlistId}/song/${track.id}`);
                         }}
                       >
                         {hasConfiguration ? "Edit" : "Configure"}
