@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef, useCallback, use } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { TrackStorage } from '../../../../utils/storage/TrackStorage';
 import { SpotifyAuthStorage } from '../../../../utils/storage/SpotifyAuthStorage';
@@ -236,7 +236,6 @@ const cleanupPlayer = async (
 };
 
 export default function SongSegmentEditor({ params }: { params: any }) {
-  const resolvedParams = use(params);
   const [track, setTrack] = useState<Track | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -270,12 +269,12 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const { segments } = loadTrackData(
-        resolvedParams.playlistId,
-        resolvedParams.songId
+        params.playlistId,
+        params.songId
       );
       setSegments(segments);
     }
-  }, [resolvedParams.playlistId, resolvedParams.songId]);
+  }, [params.playlistId, params.songId]);
 
   const [trackBPM, setTrackBPM] = useState<TrackBPM>(() => {
     if (typeof window === "undefined") {
@@ -284,8 +283,8 @@ export default function SongSegmentEditor({ params }: { params: any }) {
 
     // Try to load from storage first
     const storedBPM = TrackStorage.bpm.load(
-      resolvedParams.playlistId,
-      resolvedParams.songId
+      params.playlistId,
+      params.songId
     );
     
     if (storedBPM) {
@@ -306,15 +305,15 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     const saveBPM = () => {
       console.log("[BPM Save] Saving BPM:", trackBPM);
       TrackStorage.bpm.save(
-        resolvedParams.playlistId,
-        resolvedParams.songId,
+        params.playlistId,
+        params.songId,
         trackBPM.tempo,
         trackBPM.isManual
       );
     };
 
     saveBPM();
-  }, [trackBPM, resolvedParams.playlistId, resolvedParams.songId, track]);
+  }, [trackBPM, params.playlistId, params.songId, track]);
 
   // Update the BPM input handler
   const handleBPMChange = (newBPM: number) => {
@@ -518,7 +517,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   useEffect(() => {
     const fetchTrack = async () => {
       console.log("[Track Load] Starting fetch:", {
-        songId: resolvedParams.songId,
+        songId: params.songId,
       });
       
       try {
@@ -529,7 +528,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         }
 
         const response = await fetch(
-          `https://api.spotify.com/v1/tracks/${resolvedParams.songId}`,
+          `https://api.spotify.com/v1/tracks/${params.songId}`,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -546,7 +545,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
 
         // Try to load BPM from storage first
         const storedBPM = TrackStorage.bpm.load(
-          resolvedParams.playlistId,
+          params.playlistId,
           data.id
         );
         if (storedBPM) {
@@ -558,7 +557,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
         } else {
           // If no stored BPM, extract from sources
           console.log("[Track Load] No stored BPM, extracting from sources");
-          const bpmData = await getBPMFromSources(data, resolvedParams.playlistId);
+          const bpmData = await getBPMFromSources(data, params.playlistId);
           setTrackBPM({
             tempo: bpmData.bpm,
             isManual: bpmData.source === "manual",
@@ -572,7 +571,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     };
 
     fetchTrack();
-  }, [resolvedParams.songId, resolvedParams.playlistId, router]);
+  }, [params.songId, params.playlistId, router]);
 
   // Update the save effect
   useEffect(() => {
@@ -586,11 +585,11 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     
     // Debounce the save to prevent too many writes
     const timeoutId = setTimeout(() => {
-      saveTrackData(resolvedParams.playlistId, track.id, segments, trackBPM);
+      saveTrackData(params.playlistId, track.id, segments, trackBPM);
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [segments, track, resolvedParams.playlistId, trackBPM]);
+  }, [segments, track, params.playlistId, trackBPM]);
 
   // Update the addSegment function
   const addSegment = () => {
@@ -832,7 +831,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     const fetchBPM = async () => {
       if (!track) return;
 
-      const bpmData = await getBPMFromSources(track, resolvedParams.playlistId);
+      const bpmData = await getBPMFromSources(track, params.playlistId);
       setTrackBPM({ 
         tempo: bpmData.bpm, 
         isManual: bpmData.source === "manual",
@@ -840,7 +839,7 @@ export default function SongSegmentEditor({ params }: { params: any }) {
     };
 
     fetchBPM();
-  }, [track?.id, resolvedParams.playlistId]); // Use track.id instead of whole track object
+  }, [track?.id, params.playlistId]); // Use track.id instead of whole track object
 
   useEffect(() => {
     if (isIOS() || isSafari()) {
@@ -922,11 +921,11 @@ export default function SongSegmentEditor({ params }: { params: any }) {
       }
 
       // Finally navigate back
-      router.push(`/workout-builder/${resolvedParams.playlistId}`);
+      router.push(`/workout-builder/${params.playlistId}`);
     } catch (error) {
       console.error("[Navigation] Error returning to playlist:", error);
       // Navigate anyway even if cleanup fails
-      router.push(`/workout-builder/${resolvedParams.playlistId}`);
+      router.push(`/workout-builder/${params.playlistId}`);
     }
   };
 
@@ -1026,8 +1025,8 @@ export default function SongSegmentEditor({ params }: { params: any }) {
   if (loading || !track) {
     return (
       <LoadingState
-      songId={resolvedParams.songId} 
-      playlistId={resolvedParams.playlistId} 
+      songId={params.songId} 
+      playlistId={params.playlistId} 
       />
     );
   }
