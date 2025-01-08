@@ -74,94 +74,114 @@ export default function LoginPage() {
         {/* Overview Section */}
         <div className="mb-12 bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-8 backdrop-blur-sm border border-white/10">
           <div className="max-w-[1800px] mx-auto">
-            <h2 className="text-2xl font-semibold mb-8 text-white">Create the Perfect Workout</h2>
-            <div className="grid grid-cols-1 gap-12">
+            <h2 className="text-2xl font-semibold mb-12 text-white">Create the Perfect Workout</h2>
+            <div className="grid grid-cols-1 gap-16">
               
               {/* Step 1 */}
-              <div className="flex flex-col lg:flex-row gap-8 items-center">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-3 text-[#1DB954]">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">1</div>
-                    <span className="font-medium">Select Your Playlist</span>
+              <div className="flex flex-col lg:flex-row gap-12 items-center">
+                <div className="flex-1 space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-black border border-white/10 text-white font-bold text-lg">
+                      1
+                    </div>
+                    <span className="font-semibold text-xl text-white">Select Your Playlist</span>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed">
-                    Choose from your Spotify playlists and start building your perfect workout
+                  <p className="text-base text-gray-300 leading-relaxed max-w-lg">
+                    Choose from your Spotify playlists and start building your perfect workout. Import existing configurations or start fresh with a new workout design.
                   </p>
                 </div>
                 <div className="lg:flex-1 w-full">
-                  <Image
-                    src="/images/your-playlists.png"
-                    alt="Playlist selection interface"
-                    width={600}
-                    height={338}
-                    className="rounded-lg border border-white/10 w-full"
-                  />
+                  <div className="relative group">
+                    <Image
+                      src="/images/your-playlists.png"
+                      alt="Playlist selection interface"
+                      width={600}
+                      height={338}
+                      className="rounded-lg border border-white/10 w-full transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
                 </div>
               </div>
 
               {/* Step 2 */}
-              <div className="flex flex-col lg:flex-row-reverse gap-8 items-center">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-3 text-[#1DB954]">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">2</div>
-                    <span className="font-medium">Design Your Workout</span>
+              <div className="flex flex-col lg:flex-row-reverse gap-12 items-center">
+                <div className="flex-1 space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-black border border-white/10 text-white font-bold text-lg">
+                      2
+                    </div>
+                    <span className="font-semibold text-xl text-white">Design Your Workout</span>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed">
-                    Create a structured workout by adding segments to each track
+                  <p className="text-base text-gray-300 leading-relaxed max-w-lg">
+                    Create a structured workout by adding segments to each track. Set BPM, intensity levels, and workout types to match your training goals.
                   </p>
                 </div>
                 <div className="lg:flex-1 w-full">
-                  <Image
-                    src="/images/workout-builder.png"
-                    alt="Workout builder interface"
-                    width={600}
-                    height={338}
-                    className="rounded-lg border border-white/10 w-full"
-                  />
+                  <div className="relative group">
+                    <Image
+                      src="/images/workout-builder.png"
+                      alt="Workout builder interface"
+                      width={600}
+                      height={338}
+                      className="rounded-lg border border-white/10 w-full transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
                 </div>
               </div>
 
               {/* Step 3 */}
-              <div className="flex flex-col lg:flex-row gap-8 items-center">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-3 text-[#1DB954]">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">3</div>
-                    <span className="font-medium">Add Segments</span>
+              <div className="flex flex-col lg:flex-row gap-12 items-center">
+                <div className="flex-1 space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-black border border-white/10 text-white font-bold text-lg">
+                      3
+                    </div>
+                    <span className="font-semibold text-xl text-white">Add Segments</span>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed">
-                    Fine-tune each track with specific workout segments and intensities
+                  <p className="text-base text-gray-300 leading-relaxed max-w-lg">
+                    Fine-tune each track with specific workout segments and intensities.
                   </p>
                 </div>
                 <div className="lg:flex-1 w-full">
-                  <Image
-                    src="/images/segment-editor.png"
-                    alt="Segment editor interface"
-                    width={600}
-                    height={338}
-                    className="rounded-lg border border-white/10 w-full"
-                  />
+                  <div className="relative group">
+                    <Image
+                      src="/images/segment-editor.png"
+                      alt="Segment editor interface"
+                      width={600}
+                      height={338}
+                      className="rounded-lg border border-white/10 w-full transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
                 </div>
               </div>
 
               {/* Step 4 */}
-              <div className="flex flex-col lg:flex-row-reverse gap-8 items-center">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-3 text-[#1DB954]">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1DB954]/10 text-[#1DB954]">4</div>
-                    <span className="font-medium">Start Your Ride</span>
+              <div className="flex flex-col lg:flex-row-reverse gap-12 items-center">
+                <div className="flex-1 space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-black border border-white/10 text-white font-bold text-lg">
+                      4
+                    </div>
+                    <span className="font-semibold text-xl text-white">Start Your Ride</span>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed">
-                    Follow along with your enhanced playlist, complete with BPM tracking
+                  <p className="text-base text-gray-300 leading-relaxed max-w-lg">
+                    Follow along with your enhanced playlist, complete with BPM tracking.
                   </p>
                 </div>
                 <div className="lg:flex-1 w-full">
-                  <Image
-                    src="/images/workout-player.png"
-                    alt="Workout player interface"
-                    width={600}
-                    height={338}
-                    className="rounded-lg border border-white/10 w-full"
-                  />
+                  <div className="relative group">
+                    <Image
+                      src="/images/workout-player.png"
+                      alt="Workout player interface"
+                      width={600}
+                      height={338}
+                      className="rounded-lg border border-white/10 w-full transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
                 </div>
               </div>
 
