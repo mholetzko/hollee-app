@@ -99,7 +99,6 @@ export default function LoginPage() {
                       height={338}
                       className="rounded-lg border border-white/10 w-full transition-transform duration-300 group-hover:scale-[1.02]"
                     />
-                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
                 </div>
               </div>
@@ -226,6 +225,15 @@ export default function LoginPage() {
                   <li>Store your personal information</li>
                   <li>Track your listening habits</li>
                   <li>Modify your Spotify playlists</li>
+                </ul>
+              </div>
+
+              <div className="space-y-4 p-4 rounded-lg transition-all duration-300 hover:bg-white/5">
+                <h3 className="font-medium text-white">Requirements:</h3>
+                <ul className="list-disc list-inside space-y-2 text-sm text-gray-400">
+                  <li>Spotify account</li>
+                  <li>Spotify Premium subscription for workout playback</li>
+                  <li>Modern web browser</li>
                 </ul>
               </div>
             </div>

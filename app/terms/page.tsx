@@ -19,6 +19,7 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>You must have a valid Spotify account to use HolleeRides</li>
+              <li>You must have a Spotify Premium subscription to use workout playback features</li>
               <li>Your use of Spotify's service is subject to Spotify's Terms of Service</li>
               <li>We are not affiliated with, endorsed, or sponsored by Spotify</li>
               <li>Spotify content and functionality may change without notice</li>
@@ -44,6 +45,7 @@ export default function TermsPage() {
           <div className="space-y-2 text-gray-400">
             <p>You agree not to:</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
+              <li>Use HolleeRides for commercial purposes (e.g., in gyms, fitness studios, or other business settings)</li>
               <li>Use HolleeRides to download or copy Spotify content</li>
               <li>Attempt to circumvent any technical limitations or security measures</li>
               <li>Use the service in any way that violates Spotify's terms</li>
