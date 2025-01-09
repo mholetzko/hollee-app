@@ -66,13 +66,20 @@ export default function WorkoutBuilder({ params }: { params: { playlistId: strin
         }
 
         const data = await response.json()
+        
+        // Ensure we have valid data
+        if (!data || !Array.isArray(data.items)) {
+          throw new Error('Invalid playlist data')
+        }
+
+        // Filter out null tracks and map to track objects
         const trackList = data.items
           .map((item: any) => item.track)
           .filter((track: any) => track !== null);
         
         setTracks(trackList)
 
-        // Store the total tracks count
+        // Store the total tracks count - use the actual length of valid tracks
         PlaylistStorage.storeTotalTracksCount(params.playlistId, trackList.length);
 
       } catch (error) {
