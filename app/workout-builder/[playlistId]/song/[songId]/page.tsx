@@ -2,6 +2,7 @@
 
 "use client";
 
+import React from 'react';
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { TrackStorage } from "../../../../utils/storage/TrackStorage";
@@ -17,6 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ChevronLeftIcon } from "@radix-ui/react-icons";
 import { CurrentSegmentEditor } from "../../components/CurrentSegmentEditor";
 import { WorkoutStructureHint } from "../../components/WorkoutStructureHint";
+import Link from 'next/link';
 
 // Add type for Spotify Player
 declare global {
@@ -1046,9 +1048,48 @@ export default function SongSegmentEditor() {
             <ChevronLeftIcon className="w-6 h-6" />
           </button>
           <div className="flex-1">
-            <h1 className="font-semibold text-lg">{track.name}</h1>
+            <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
+              <a 
+                href={`https://open.spotify.com/track/${track?.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#1DB954] transition-colors flex items-center gap-2"
+              >
+                {track?.name}
+                <img 
+                  src="/spotify-logo.svg" 
+                  alt="Spotify" 
+                  className="w-5 h-5 inline"
+                />
+              </a>
+            </h1>
             <p className="text-sm text-gray-400">
-              {track.artists.map((a) => a.name).join(", ")}
+              {track?.artists?.map((artist, i) => (
+                <React.Fragment key={artist.id}>
+                  {i > 0 && ", "}
+                  <a
+                    href={`https://open.spotify.com/artist/${artist.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[#1DB954] transition-colors"
+                  >
+                    {artist.name}
+                  </a>
+                </React.Fragment>
+              ))}
+              {track?.album && (
+                <>
+                  {" • "}
+                  <a
+                    href={`https://open.spotify.com/album/${track.album.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[#1DB954] transition-colors"
+                  >
+                    {track.album.name}
+                  </a>
+                </>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-4">

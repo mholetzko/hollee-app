@@ -36,6 +36,7 @@ const hasSavedSegments = (playlistId: string, songId: string): boolean => {
 export default function WorkoutBuilder({ params }: { params: { playlistId: string } }) {
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
+  const [segments, setSegments] = useState<Segment[]>([])
   const router = useRouter()
   const [importMessage, setImportMessage] = useState<{
     type: 'success' | 'error'
@@ -125,9 +126,16 @@ export default function WorkoutBuilder({ params }: { params: { playlistId: strin
 
   useEffect(() => {
     if (tracks.length > 0) {
-      ExampleWorkoutStorage.initializeIfExample(params.playlistId);
+      // Only initialize if no tracks have segments
+      const hasAnySegments = tracks.some(track => 
+        TrackStorage.segments.hasData(params.playlistId, track.id)
+      );
+      
+      if (!hasAnySegments) {
+        ExampleWorkoutStorage.initializeIfExample(params.playlistId);
+      }
     }
-  }, [tracks.length, params.playlistId]);
+  }, [tracks.length, params.playlistId, tracks]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -208,6 +216,9 @@ export default function WorkoutBuilder({ params }: { params: { playlistId: strin
             <ExportImportButtons
               onExport={handleExport}
               onImport={handleImport}
+              onSegmentsChange={setSegments}
+              playlistId={params.playlistId}
+              track={tracks[0] || undefined}
             />
           </div>
         </div>

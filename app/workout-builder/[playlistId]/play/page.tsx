@@ -854,11 +854,43 @@ export default function WorkoutPlayer() {
                 )}
                 <div>
                   <h1 className="text-2xl font-bold mb-1">
-                    {currentTrack.name}
+                    <a 
+                      href={`https://open.spotify.com/track/${currentTrack.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-[#1DB954] transition-colors flex items-center gap-2"
+                    >
+                      {currentTrack.name}
+                      <img 
+                        src="/spotify-logo.svg" 
+                        alt="Spotify" 
+                        className="w-5 h-5 inline"
+                      />
+                    </a>
                   </h1>
                   <p className="text-sm text-gray-400">
-                    {currentTrack.artists.map((a) => a.name).join(", ")}
+                    {currentTrack.artists.map((artist, i) => (
+                      <React.Fragment key={artist.id}>
+                        {i > 0 && ", "}
+                        <a
+                          href={`https://open.spotify.com/artist/${artist.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-[#1DB954] transition-colors"
+                        >
+                          {artist.name}
+                        </a>
+                      </React.Fragment>
+                    ))}
                   </p>
+                  <a
+                    href={`https://open.spotify.com/album/${currentTrack.album.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-gray-400 hover:text-[#1DB954] transition-colors"
+                  >
+                    {currentTrack.album.name}
+                  </a>
                 </div>
               </div>
 

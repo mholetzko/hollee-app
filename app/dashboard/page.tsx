@@ -294,7 +294,19 @@ export default function DashboardPage() {
 
                   <div className="p-4">
                     <h2 className="text-sm font-semibold mb-1 text-white truncate group-hover:text-[#1DB954] transition-colors duration-300">
-                      {playlist.name}
+                      <a
+                        href={`https://open.spotify.com/playlist/${playlist.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-[#1DB954] transition-colors flex items-center gap-2"
+                      >
+                        {playlist.name}
+                        <img 
+                          src="/spotify-logo.svg" 
+                          alt="Spotify" 
+                          className="w-4 h-4 inline opacity-75"
+                        />
+                      </a>
                     </h2>
                     <p className="text-xs text-gray-400 mb-3">
                       {playlist.tracks.total} tracks

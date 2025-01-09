@@ -1,5 +1,7 @@
 import { EXAMPLE_CONFIGS, EXAMPLE_PLAYLISTS } from '@/app/config/example-workouts';
 import { WorkoutConfigStorage } from './WorkoutConfigStorage';
+import { TrackStorage } from './TrackStorage';
+import { TracklistStorage } from './TracklistStorage';
 
 export const ExampleWorkoutStorage = {
   isExamplePlaylist(playlistId: string): boolean {
@@ -11,30 +13,39 @@ export const ExampleWorkoutStorage = {
     return WorkoutConfigStorage.hasConfig(playlistId);
   },
 
-  async initializeIfExample(playlistId: string): Promise<boolean> {
-    if (!this.isExamplePlaylist(playlistId)) {
-      return false;
+  initializeIfExample: (playlistId: string) => {
+    // Check if we've already initialized this playlist
+    const initKey = `playlist:${playlistId}:initialized`;
+    if (localStorage.getItem(initKey)) {
+      return;
     }
 
-    // Check if this example playlist has already been initialized
-    const hasExistingConfig = this.hasConfig(playlistId);
-    if (hasExistingConfig) {
-      return false;
+    // Check if there are any existing segments for any tracks
+    const hasExistingWorkouts = TracklistStorage.load(playlistId) > 0;
+    if (hasExistingWorkouts) {
+      localStorage.setItem(initKey, 'true');
+      return;
     }
 
-    // Get the example config
-    const exampleConfig = EXAMPLE_CONFIGS[playlistId];
-    if (!exampleConfig) {
-      return false;
-    }
+    // Initialize example workouts only if this is an example playlist
+    if (playlistId === EXAMPLE_PLAYLIST_ID) {
+      console.log('[Example Storage] Initializing example workouts');
+      
+      // Load example configurations
+      const exampleConfigs = EXAMPLE_WORKOUT_CONFIGS;
+      
+      // Store configurations
+      Object.entries(exampleConfigs).forEach(([trackId, config]) => {
+        if (config.segments) {
+          TrackStorage.segments.save(playlistId, trackId, config.segments);
+        }
+        if (config.bpm) {
+          TrackStorage.bpm.save(playlistId, trackId, config.bpm);
+        }
+      });
 
-    // Initialize the workout configuration
-    try {
-      await WorkoutConfigStorage.importConfigData(playlistId, exampleConfig);
-      return true;
-    } catch (error) {
-      console.error('Failed to initialize example workout:', error);
-      return false;
+      // Mark as initialized
+      localStorage.setItem(initKey, 'true');
     }
-  }
+  },
 }; 
