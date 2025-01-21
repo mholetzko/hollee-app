@@ -7,7 +7,7 @@ import React, {
   useState,
   useRef,
   useCallback,
-  useMemo
+  useMemo,
 } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -32,9 +32,9 @@ import { SegmentTimeline } from "../components/SegmentTimeline";
 import { TrackStorage } from "../../../utils/storage/TrackStorage";
 import { SpotifyAuthStorage } from "../../../utils/storage/SpotifyAuthStorage";
 import { DeviceStorage } from "../../../utils/storage/DeviceStorage";
-import { GlobalWorkoutTimeline } from '../components/GlobalWorkoutTimeline';
-import { WorkoutBadge } from '../components/WorkoutBadge';
-import { SmallWorkoutBadge } from '../components/SmallWorkoutBadge';
+import { GlobalWorkoutTimeline } from "../components/GlobalWorkoutTimeline";
+import { WorkoutBadge } from "../components/WorkoutBadge";
+import { SmallWorkoutBadge } from "../components/SmallWorkoutBadge";
 
 // Add types if not already defined in types.ts
 declare global {
@@ -184,6 +184,9 @@ export default function WorkoutPlayer() {
   // Add state to track GO! display
   const [showingGo, setShowingGo] = useState(false);
 
+  // Add this near other useRef declarations at the top
+  const previousPositionRef = useRef<number>(0);
+
   // Define playTrack first since it's used by playNextTrack
   const playTrack = useCallback(
     async (trackId: string) => {
@@ -325,10 +328,42 @@ export default function WorkoutPlayer() {
             if (position <= currentTrack?.duration_ms) {
               setPlaybackState((prev) => ({
                 ...prev,
-                position: position,
+                position,
               }));
             }
           }, 50);
+        }
+
+        // Track end detection logic
+        const wasPlaying = !prev.paused;
+        const isNowPaused = state.paused;
+        const isAtEnd = newPosition >= (state.duration - 500);
+        
+        // Track has ended if:
+        // 1. Was playing but now paused and at position 0 (natural end)
+        // 2. Was playing but now paused and was near the end
+        const trackHasEnded = 
+          (wasPlaying && isNowPaused && newPosition === 0 && previousPositionRef.current > 0) ||
+          (wasPlaying && isNowPaused && isAtEnd);
+
+        console.log("[Player State] Debug:", {
+          wasPlaying,
+          isNowPaused,
+          previousPosition: previousPositionRef.current,
+          currentPosition: newPosition,
+          duration: state.duration,
+          isAtEnd,
+          trackHasEnded
+        });
+
+        // Store current position for next update
+        previousPositionRef.current = newPosition;
+
+        if (trackHasEnded && !isPlayingNextTrack.current) {
+          console.log("[Player State] Track ended, playing next track");
+          setTimeout(() => {
+            playNextTrack();
+          }, 500);
         }
 
         return {
@@ -337,6 +372,7 @@ export default function WorkoutPlayer() {
           position: newPosition,
           duration: state.duration,
           hasStarted: true,
+          paused: state.paused,
           track_window: {
             current_track: {
               id: state.track_window?.current_track?.id,
@@ -354,7 +390,7 @@ export default function WorkoutPlayer() {
       }
       player.removeListener("player_state_changed", handleStateChange);
     };
-  }, [player, currentTrack?.duration_ms]);
+  }, [player, currentTrack?.duration_ms, playNextTrack]);
 
   // 2. Update the togglePlayback function
   const togglePlayback = async () => {
@@ -854,16 +890,16 @@ export default function WorkoutPlayer() {
                 )}
                 <div>
                   <h1 className="text-2xl font-bold mb-1">
-                    <a 
+                    <a
                       href={`https://open.spotify.com/track/${currentTrack.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:text-[#1DB954] transition-colors flex items-center gap-2"
                     >
                       {currentTrack.name}
-                      <img 
-                        src="/spotify-logo.svg" 
-                        alt="Spotify" 
+                      <img
+                        src="/spotify-logo.svg"
+                        alt="Spotify"
                         className="w-5 h-5 inline"
                       />
                     </a>
