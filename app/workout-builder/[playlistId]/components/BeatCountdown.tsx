@@ -20,7 +20,13 @@ class AudioPool {
 
   constructor(src: string, poolSize: number = 3) {
     for (let i = 0; i < poolSize; i++) {
-      const audio = new Audio(src)
+      const audio = new Audio()
+      // Add error handling for audio loading
+      audio.addEventListener('error', (e) => {
+        console.warn(`Audio loading error for ${src}:`, e.error)
+      })
+      // Set source after adding error listener
+      audio.src = src
       audio.volume = 0.5
       this.pool.push(audio)
     }
@@ -28,9 +34,14 @@ class AudioPool {
 
   play() {
     const audio = this.pool[this.index]
-    if (audio.paused) {
+    // Check if audio is actually loaded before playing
+    if (audio.readyState >= 2) {
       audio.currentTime = 0
-      audio.play().catch(err => console.warn('Audio play failed:', err))
+      audio.play().catch(err => {
+        console.warn('Audio play failed:', err)
+        // Try to reload the audio
+        audio.load()
+      })
     }
     this.index = (this.index + 1) % this.pool.length
   }
