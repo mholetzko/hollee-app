@@ -189,7 +189,7 @@ export default function WorkoutPlayer() {
 
   // Define playTrack first since it's used by playNextTrack
   const playTrack = useCallback(
-    async (trackId: string) => {
+    async (trackId: string, resumePosition?: number) => {
       try {
         if (!player || !deviceId) {
           throw new Error("Player or device ID not available");
@@ -200,7 +200,7 @@ export default function WorkoutPlayer() {
           throw new Error("No access token available");
         }
 
-        // First pause and seek to 0
+        // First pause and seek to the resume position or 0
         await Promise.all([
           fetch(
             `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`,
@@ -212,7 +212,7 @@ export default function WorkoutPlayer() {
             }
           ).catch(() => {}),
           fetch(
-            `https://api.spotify.com/v1/me/player/seek?position_ms=0&device_id=${deviceId}`,
+            `https://api.spotify.com/v1/me/player/seek?position_ms=${resumePosition || 0}&device_id=${deviceId}`,
             {
               method: "PUT",
               headers: {
@@ -225,7 +225,7 @@ export default function WorkoutPlayer() {
         // Wait for pause and seek to complete
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // Then start playing from beginning
+        // Then start playing from the position
         const response = await fetch(
           `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
           {
@@ -236,23 +236,25 @@ export default function WorkoutPlayer() {
             },
             body: JSON.stringify({
               uris: [`spotify:track:${trackId}`],
-              position_ms: 0,
+              position_ms: resumePosition || 0,
             }),
           }
         );
 
         if (response.status === 204) {
           // Reset all position tracking
-          startTimeRef.current = Date.now();
-          positionRef.current = 0;
+          startTimeRef.current = Date.now() - (resumePosition || 0);
+          positionRef.current = resumePosition || 0;
 
-          // Force player to seek to beginning
-          await player.seek(0);
+          // Force player to seek to position
+          if (resumePosition) {
+            await player.seek(resumePosition);
+          }
 
           setPlaybackState((prev) => ({
             ...prev,
             isPlaying: true,
-            position: 0,
+            position: resumePosition || 0,
             hasStarted: true,
             track_window: {
               current_track: { id: trackId },
@@ -530,8 +532,8 @@ export default function WorkoutPlayer() {
       }
 
       if (!playbackState.isPlaying) {
-        // If starting playback, use playTrack to ensure we start from beginning
-        await playTrack(currentTrack.id);
+        // If starting playback, use current position
+        await playTrack(currentTrack.id, playbackState.position);
       } else {
         // If pausing, use regular pause
         const token = SpotifyAuthStorage.load();
