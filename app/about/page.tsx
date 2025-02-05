@@ -58,6 +58,12 @@ export default function AboutPage() {
                     fill
                     className="object-cover"
                     priority
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    onError={(e: any) => {
+                      console.error('Error loading image:', e);
+                      // You can set a fallback image here
+                      e.currentTarget.src = '/images/placeholder-profile.jpg';
+                    }}
                   />
                 </div>
               </div>

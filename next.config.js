@@ -9,6 +9,7 @@ const nextConfig = {
   },
   images: {
     domains: ['i.scdn.co', 'mosaic.scdn.co'],
+    unoptimized: process.env.NODE_ENV === 'development',
   },
 }
 
