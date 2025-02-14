@@ -11,6 +11,8 @@ interface SegmentTimelineProps {
   isPlaying: boolean
   showBeats?: boolean
   bpm?: number
+  clipStart?: number
+  clipEnd?: number
 }
 
 const formatDuration = (ms: number) => {
@@ -33,10 +35,14 @@ export const SegmentTimeline = ({
   segments,
   duration,
   position,
+  isPlaying,
   showBeats,
-  bpm = 128
+  bpm = 128,
+  clipStart = 0,
+  clipEnd,
 }: SegmentTimelineProps) => {
   const timelineRef = useRef<HTMLDivElement>(null)
+  const effectiveClipEnd = clipEnd || duration;
 
   return (
     <div className="w-full space-y-2">
@@ -45,6 +51,37 @@ export const SegmentTimeline = ({
         ref={timelineRef}
         className="h-12 bg-black/20 rounded-lg relative group"
       >
+        {/* Clip region */}
+        <div 
+          className="absolute top-0 bottom-0 bg-white/5 border-x border-white/20"
+          style={{
+            left: `${(clipStart / duration) * 100}%`,
+            width: `${((effectiveClipEnd - clipStart) / duration) * 100}%`,
+          }}
+        />
+
+        {/* Clip markers */}
+        {clipStart > 0 && (
+          <div 
+            className="absolute top-0 bottom-0 w-2 bg-white cursor-ew-resize group hover:bg-white/80 transition-colors"
+            style={{ left: `${(clipStart / duration) * 100}%` }}
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black text-2xl font-black">
+              &#x226B;
+            </div>
+          </div>
+        )}
+        {clipEnd && clipEnd < duration && (
+          <div 
+            className="absolute top-0 bottom-0 w-2 bg-white cursor-ew-resize group hover:bg-white/80 transition-colors"
+            style={{ left: `${(clipEnd / duration) * 100}%` }}
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black text-2xl font-black">
+              &#x226A;
+            </div>
+          </div>
+        )}
+
         {/* Beat markers */}
         {showBeats && bpm && (
           <div className="absolute inset-0">

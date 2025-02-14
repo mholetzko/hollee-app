@@ -187,6 +187,12 @@ export default function WorkoutPlayer() {
   // Add this near other useRef declarations at the top
   const previousPositionRef = useRef<number>(0);
 
+  // Add clip boundaries to track data loading
+  const [clipBoundaries, setClipBoundaries] = useState<{ startTime: number; endTime: number }>({ 
+    startTime: 0, 
+    endTime: 0 
+  });
+
   // Define playTrack first since it's used by playNextTrack
   const playTrack = useCallback(
     async (trackId: string, resumePosition?: number) => {
@@ -773,16 +779,23 @@ export default function WorkoutPlayer() {
     };
   }, [isScriptLoaded]);
 
-  // Add effect to load track data when track changes
+  // Update loadTrackData to include clip boundaries
   useEffect(() => {
-    if (tracks[currentTrackIndex]) {
-      const trackData = loadTrackData(playlistId, tracks[currentTrackIndex].id);
+    if (currentTrack) {
+      const trackData = TrackStorage.loadTrackData(playlistId, currentTrack.id);
       setSegments(trackData.segments);
       if (trackData.bpm) {
         setTrackBPM(trackData.bpm);
       }
+      // Load clip boundaries
+      const clipData = TrackStorage.clip.load(playlistId, currentTrack.id);
+      if (clipData) {
+        setClipBoundaries(clipData);
+      } else {
+        setClipBoundaries({ startTime: 0, endTime: 0 });
+      }
     }
-  }, [currentTrackIndex, tracks, playlistId, loadTrackData]);
+  }, [currentTrack, playlistId]);
 
   // Add this effect after your other effects
   useEffect(() => {
@@ -1117,6 +1130,8 @@ export default function WorkoutPlayer() {
                 isPlaying={playbackState.isPlaying}
                 showBeats={true}
                 bpm={trackBPM.tempo}
+                clipStart={clipBoundaries.startTime}
+                clipEnd={clipBoundaries.endTime}
               />
             </div>
 
