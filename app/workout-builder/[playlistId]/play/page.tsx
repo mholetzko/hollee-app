@@ -206,33 +206,20 @@ export default function WorkoutPlayer() {
           throw new Error("No access token available");
         }
 
-        // First pause and seek to the resume position or 0
-        await Promise.all([
-          fetch(
-            `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          ).catch(() => {}),
-          fetch(
-            `https://api.spotify.com/v1/me/player/seek?position_ms=${resumePosition || 0}&device_id=${deviceId}`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          ).catch(() => {}),
-        ]);
+        // Get clip boundaries and determine start position
+        const clipData = TrackStorage.clip.load(playlistId, trackId);
+        const startPosition = resumePosition ?? (clipData?.startTime ?? 0);
 
-        // Wait for pause and seek to complete
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Ensure position is within clip boundaries if they exist
+        let boundedPosition = startPosition;
+        if (clipData?.startTime > 0) {
+          boundedPosition = Math.max(clipData.startTime, boundedPosition);
+        }
+        if (clipData?.endTime > 0) {
+          boundedPosition = Math.min(clipData.endTime, boundedPosition);
+        }
 
-        // Then start playing from the position
-        const response = await fetch(
+        await fetch(
           `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
           {
             method: "PUT",
@@ -242,54 +229,34 @@ export default function WorkoutPlayer() {
             },
             body: JSON.stringify({
               uris: [`spotify:track:${trackId}`],
-              position_ms: resumePosition || 0,
+              position_ms: boundedPosition,
             }),
           }
         );
 
-        if (response.status === 204) {
-          // Reset all position tracking
-          startTimeRef.current = Date.now() - (resumePosition || 0);
-          positionRef.current = resumePosition || 0;
+        // Reset all position tracking
+        startTimeRef.current = Date.now() - boundedPosition;
+        positionRef.current = boundedPosition;
 
-          // Force player to seek to position
-          if (resumePosition) {
-            await player.seek(resumePosition);
-          }
-
-          setPlaybackState((prev) => ({
-            ...prev,
-            isPlaying: true,
-            position: resumePosition || 0,
-            hasStarted: true,
-            track_window: {
-              current_track: { id: trackId },
-            },
-          }));
-
-          return;
-        }
-
-        throw new Error(`Failed to play track: ${response.status}`);
+        setPlaybackState((prev) => ({
+          ...prev,
+          isPlaying: true,
+          position: boundedPosition,
+          hasStarted: true,
+          track_window: {
+            current_track: { id: trackId },
+          },
+        }));
       } catch (error) {
         console.error("[playTrack] Error:", error);
         throw error;
       }
     },
-    [player, deviceId]
+    [player, deviceId, playlistId]
   );
 
   // Then define playNextTrack
   const playNextTrack = useCallback(async () => {
-    console.log("[playNextTrack] Starting with state:", {
-      currentIndex: currentTrackIndexRef.current,
-      totalTracks: tracksRef.current.length,
-      isPlaying: isPlayingNextTrack.current,
-      playerReady: !!player,
-      deviceId
-    });
-
-    // Set the flag at the start of actual playback
     try {
       const nextTrackIndex = currentTrackIndexRef.current + 1;
       if (nextTrackIndex >= tracksRef.current.length) {
@@ -300,220 +267,120 @@ export default function WorkoutPlayer() {
       // Set the flag just before we start making changes
       isPlayingNextTrack.current = true;
 
-      // First pause current playback and wait for it to complete
-      if (player) {
-        try {
-          console.log("[playNextTrack] Pausing current playback");
-          await player.pause();
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          console.log("[playNextTrack] Pause completed");
-        } catch (e) {
-          console.warn("[playNextTrack] Error during pause:", e);
-        }
-      }
-
-      // Disconnect and reconnect the player to ensure clean state
-      try {
-        await player?.disconnect();
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        await player?.connect();
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      } catch (e) {
-        console.warn("[playNextTrack] Error resetting player connection:", e);
-      }
-
-      // Update track index and wait for state update
-      setCurrentTrackIndex(nextTrackIndex);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Get the next track
+      // Get the next track and its clip data immediately
       const nextTrack = tracksRef.current[nextTrackIndex];
-
-      // Ensure we have a valid player and device
-      if (!player || !deviceId) {
-        throw new Error("Player or device not ready");
-      }
-
-      // Try to transfer playback to ensure device is active
       const token = SpotifyAuthStorage.load();
-      if (token) {
-        try {
-          await fetch("https://api.spotify.com/v1/me/player", {
-            method: "PUT",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              device_ids: [deviceId],
-              play: false,
-            }),
-          });
-          // Wait for transfer to complete
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        } catch (e) {
-          console.warn("[playNextTrack] Error transferring playback:", e);
-        }
+      const clipData = TrackStorage.clip.load(playlistId, nextTrack.id);
+      const startPosition = clipData?.startTime ?? 0;
+
+      if (!token || !player || !deviceId) {
+        throw new Error("Player not ready");
       }
 
-      // Then try to play the next track
-      await playTrack(nextTrack.id);
+      // Update track index immediately
+      setCurrentTrackIndex(nextTrackIndex);
 
-      console.log("[playNextTrack] Successfully started next track");
+      // Prepare the play request with the correct starting position
+      const playRequest = fetch(
+        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            uris: [`spotify:track:${nextTrack.id}`],
+            position_ms: startPosition,
+          }),
+        }
+      );
+
+      // Execute play request and seek (if needed) in parallel
+      await Promise.all([
+        playRequest,
+        startPosition > 0 ? player.seek(startPosition) : Promise.resolve(),
+      ]);
+
+      // Reset tracking state
+      startTimeRef.current = Date.now() - startPosition;
+      positionRef.current = startPosition;
+
+      // Update playback state
+      setPlaybackState((prev) => ({
+        ...prev,
+        isPlaying: true,
+        position: startPosition,
+        hasStarted: true,
+        track_window: {
+          current_track: { id: nextTrack.id },
+        },
+      }));
+
+      // Clear the next track flag
+      isPlayingNextTrack.current = false;
+
     } catch (error) {
-      console.error("[playNextTrack] Error with full context:", error);
-    } finally {
-      // Reset the flag after a shorter delay
-      setTimeout(() => {
-        isPlayingNextTrack.current = false;
-      }, 1000);
+      console.error("[playNextTrack] Error:", error);
+      isPlayingNextTrack.current = false;
     }
-  }, [player, deviceId, playTrack]);
+  }, [player, deviceId, playlistId]);
 
   // Update the playback state handling effect
   useEffect(() => {
     if (!player) return;
 
     const handleStateChange = (state: any) => {
-      if (!state) {
-        console.log("[Player State] Received null state");
-        return;
-      }
+      if (!state) return;
 
-      console.log("[Player State] Raw state:", {
-        position: state.position,
-        duration: state.duration,
-        paused: state.paused,
-        track: state.track_window?.current_track?.id,
-        timestamp: state.timestamp,
-        context: state.context
-      });
-
-      // Update playback state in a single update
       setPlaybackState((prev) => {
         const newPosition = state.position;
         const startTime = Date.now() - newPosition;
 
-        console.log("[Player State] Previous state:", {
-          isPlaying: prev.isPlaying,
-          position: prev.position,
-          duration: prev.duration,
-          hasStarted: prev.hasStarted,
-          currentTrackId: prev.track_window?.current_track?.id
-        });
-
         // Clear existing interval
         if (progressInterval.current) {
           clearInterval(progressInterval.current);
-          console.log("[Player State] Cleared existing interval");
+          progressInterval.current = null;
         }
 
         // Set up new interval if playing
         if (!state.paused) {
-          console.log("[Player State] Setting up new interval for position updates");
           progressInterval.current = setInterval(() => {
-            const position = Date.now() - startTime;
-            if (position <= currentTrack?.duration_ms) {
-              setPlaybackState((prev) => ({
-                ...prev,
-                position,
-              }));
-
-              // Check if we're near the end of the track
-              const timeRemaining = currentTrack.duration_ms - position;
-              console.log("[Progress] Time remaining:", timeRemaining);
+            const currentPosition = Date.now() - startTime;
+            
+            // Check if we've reached clip end
+            if (clipBoundaries.endTime > 0 && currentPosition >= clipBoundaries.endTime) {
+              console.log("[Player] Reached clip end, playing next track");
+              clearInterval(progressInterval.current);
+              progressInterval.current = null;
               
-              // Start transition earlier and don't block with isPlayingNextTrack
-              if (timeRemaining < 2000) {
-                console.log("[Progress] Near end of track, preparing next track");
-                // Clear the interval to prevent multiple triggers
-                if (progressInterval.current) {
-                  clearInterval(progressInterval.current);
-                  progressInterval.current = null;
-                }
-                // Play next track without checking isPlayingNextTrack
-                playNextTrack().catch(error => {
-                  console.error("[Progress] Error playing next track:", error);
-                });
-              }
+              // Schedule next track
+              setTimeout(() => {
+                playNextTrack();
+              }, 0);
+
+              return;
             }
+
+            setPlaybackState((prev) => ({
+              ...prev,
+              position: currentPosition,
+            }));
           }, 50);
         }
 
-        // Enhanced track end detection logic
-        const wasPlaying = prev.isPlaying;
-        const isNowPaused = state.paused;
-        const currentPosition = state.position;
-        const duration = state.duration;
-        const positionJumped = Math.abs(previousPositionRef.current - currentPosition) > 5000;
-        
-        console.log("[Player State] Position analysis:", {
-          previousPosition: previousPositionRef.current,
-          currentPosition,
-          positionDelta: previousPositionRef.current - currentPosition,
-          positionJumped,
-          duration,
-          remainingTime: duration - currentPosition,
-          isNearEnd: duration - previousPositionRef.current < 1500
-        });
-
-        // Track has ended if:
-        // 1. Was playing and position suddenly reset to 0
-        // 2. Was playing and we were near the end and now paused
-        // 3. Was playing and position jumped backwards significantly
-        const wasNearEnd = duration - previousPositionRef.current < 1500;
-        const hasReset = previousPositionRef.current > 1000 && currentPosition === 0;
-        const backwardsJump = positionJumped && currentPosition < previousPositionRef.current;
-        
-        const trackHasEnded = wasPlaying && (
-          (hasReset && isNowPaused) ||
-          (wasNearEnd && isNowPaused) ||
-          (backwardsJump && wasNearEnd)
-        );
-
-        console.log("[Player State] Enhanced end detection:", {
-          wasPlaying,
-          isNowPaused,
-          wasNearEnd,
-          hasReset,
-          backwardsJump,
-          positionJumped,
-          previousPosition: previousPositionRef.current,
-          currentPosition,
-          trackHasEnded,
-          isPlayingNextFlag: isPlayingNextTrack.current
-        });
-
-        // Store current position for next update
-        previousPositionRef.current = currentPosition;
-
-        // Trigger next track if ended
-        if (trackHasEnded && !isPlayingNextTrack.current) {
-          console.log("[Player State] Track end detected, initiating next track");
-          // Add a small delay before playing next track to ensure clean transition
-          setTimeout(() => {
-            playNextTrack().catch(error => {
-              console.error("[Player State] Error playing next track:", error);
-            });
-          }, 100);
-        }
-
-        const newState = {
+        return {
           ...prev,
           isPlaying: !state.paused,
           position: newPosition,
           duration: state.duration,
           hasStarted: true,
-          paused: state.paused,
           track_window: {
             current_track: {
               id: state.track_window?.current_track?.id,
             },
           },
         };
-
-        console.log("[Player State] New state:", newState);
-        return newState;
       });
     };
 
@@ -522,10 +389,11 @@ export default function WorkoutPlayer() {
     return () => {
       if (progressInterval.current) {
         clearInterval(progressInterval.current);
+        progressInterval.current = null;
       }
       player.removeListener("player_state_changed", handleStateChange);
     };
-  }, [player, currentTrack?.duration_ms, playNextTrack]);
+  }, [player, playNextTrack, clipBoundaries]);
 
   // 2. Update the togglePlayback function
   const togglePlayback = async () => {
@@ -923,6 +791,30 @@ export default function WorkoutPlayer() {
     segments,
     showingGo,
   ]);
+
+  // Update handleSeek to respect clip boundaries
+  const handleSeek = useCallback(
+    (position: number) => {
+      if (!player || !isPlayerReady) return;
+
+      // Ensure position is within clip boundaries
+      let boundedPosition = Math.max(0, Math.min(position, currentTrack?.duration_ms || 0));
+      if (clipBoundaries.startTime > 0) {
+        boundedPosition = Math.max(clipBoundaries.startTime, boundedPosition);
+      }
+      if (clipBoundaries.endTime > 0) {
+        boundedPosition = Math.min(clipBoundaries.endTime, boundedPosition);
+      }
+
+      player.seek(boundedPosition).then(() => {
+        setPlaybackState((prev) => ({
+          ...prev,
+          position: boundedPosition,
+        }));
+      });
+    },
+    [player, isPlayerReady, currentTrack?.duration_ms, clipBoundaries]
+  );
 
   // 3. Return your JSX
   if (error) {
