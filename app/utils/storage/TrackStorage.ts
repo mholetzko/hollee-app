@@ -145,5 +145,25 @@ export const TrackStorage = {
     } catch (error) {
       console.error("[TrackStorage] Error saving track data:", error);
     }
-  }
+  },
+  clip: {
+    save: (playlistId: string, trackId: string, clip: { startTime: number; endTime: number }) => {
+      try {
+        const key = `clip:${playlistId}:${trackId}`;
+        localStorage.setItem(key, JSON.stringify(clip));
+      } catch (error) {
+        console.error("[TrackStorage] Error saving clip:", error);
+      }
+    },
+    load: (playlistId: string, trackId: string) => {
+      try {
+        const key = `clip:${playlistId}:${trackId}`;
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : null;
+      } catch (error) {
+        console.error("[TrackStorage] Error loading clip:", error);
+        return null;
+      }
+    },
+  },
 }; 

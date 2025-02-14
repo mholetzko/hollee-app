@@ -10,6 +10,8 @@ interface TimelineProps {
   trackBPM: TrackBPM;
   onDragStart: (e: React.MouseEvent, segmentId: string, type: "start" | "end") => void;
   formatDuration: (ms: number) => string;
+  clipStart?: number;
+  clipEnd?: number;
 }
 
 export const Timeline = forwardRef<HTMLDivElement, TimelineProps>(({
@@ -19,12 +21,53 @@ export const Timeline = forwardRef<HTMLDivElement, TimelineProps>(({
   trackBPM,
   onDragStart,
   formatDuration,
+  clipStart = 0,
+  clipEnd,
 }, ref) => {
+  const effectiveClipEnd = clipEnd || track.duration_ms;
+
   return (
     <div 
       ref={ref}
       className="relative h-32 bg-white/10 rounded overflow-hidden"
     >
+      {/* Clip region */}
+      <div 
+        className="absolute top-0 bottom-0 bg-white/5 border-x border-white/20"
+        style={{
+          left: `${(clipStart / track.duration_ms) * 100}%`,
+          width: `${((effectiveClipEnd - clipStart) / track.duration_ms) * 100}%`,
+        }}
+      />
+
+      {/* Clip markers */}
+      {clipStart > 0 && (
+        <div 
+          className="absolute top-0 bottom-0 w-2 bg-white cursor-ew-resize group hover:bg-white/80 transition-colors"
+          style={{ left: `${(clipStart / track.duration_ms) * 100}%` }}
+        >
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-black/80 text-xs px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+            {formatDuration(clipStart)}
+          </div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black text-2xl font-black">
+            &#x226B;
+          </div>
+        </div>
+      )}
+      {clipEnd && clipEnd < track.duration_ms && (
+        <div 
+          className="absolute top-0 bottom-0 w-2 bg-white cursor-ew-resize group hover:bg-white/80 transition-colors"
+          style={{ left: `${(clipEnd / track.duration_ms) * 100}%` }}
+        >
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-black/80 text-xs px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+            {formatDuration(clipEnd)}
+          </div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black text-2xl font-black">
+            &#x226A;
+          </div>
+        </div>
+      )}
+
       {/* Progress bar */}
       <div 
         className="absolute top-0 bottom-0 w-0.5 bg-white/50 z-20 transition-all duration-100"
@@ -62,6 +105,15 @@ export const Timeline = forwardRef<HTMLDivElement, TimelineProps>(({
           })}
         </div>
       )}
+
+      {/* Playhead */}
+      <div 
+        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-glow 
+          transition-all duration-100 -translate-x-1/2 z-20"
+        style={{
+          left: `${(playbackState.position / track.duration_ms) * 100}%`,
+        }}
+      />
 
       {/* Segments */}
       {segments

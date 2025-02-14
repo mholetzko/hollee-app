@@ -9,7 +9,9 @@ import {
   ScissorsIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  RowSpacingIcon
+  RowSpacingIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon
 } from "@radix-ui/react-icons";
 import { Button } from '@/components/ui/button';
 
@@ -27,6 +29,10 @@ interface TransportControlsProps {
   canSplit: boolean;
   onMergeSegment: () => void;
   canMerge: boolean;
+  onSetStart: () => void;
+  onSetEnd: () => void;
+  clipStart?: number;
+  clipEnd?: number;
 }
 
 export const TransportControls: React.FC<TransportControlsProps> = ({
@@ -43,6 +49,10 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
   canSplit,
   onMergeSegment,
   canMerge,
+  onSetStart,
+  onSetEnd,
+  clipStart,
+  clipEnd,
 }) => {
   const formatTime = (ms: number): string => {
     const minutes = Math.floor(ms / 60000);
@@ -133,6 +143,26 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
         >
           <RowSpacingIcon className="w-4 h-4" />
           Merge
+        </Button>
+        <Button
+          onClick={onSetStart}
+          size="sm"
+          variant="ghost"
+          className="flex items-center gap-1"
+          title={clipStart ? `Clip starts at ${formatTime(clipStart)}` : 'Set clip start'}
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+          Start
+        </Button>
+        <Button
+          onClick={onSetEnd}
+          size="sm"
+          variant="ghost"
+          className="flex items-center gap-1"
+          title={clipEnd ? `Clip ends at ${formatTime(clipEnd)}` : 'Set clip end'}
+        >
+          <ArrowRightIcon className="w-4 h-4" />
+          End
         </Button>
         <Button
           onClick={onAddSegment}

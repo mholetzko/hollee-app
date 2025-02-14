@@ -15,7 +15,7 @@ import { Timeline } from "../../components/Timeline";
 import { SegmentEditor } from "../../components/SegmentEditor";
 import { PlaybackState, Segment, Track, TrackBPM } from "../../types";
 import { v4 as uuidv4 } from "uuid";
-import { ChevronLeftIcon } from "@radix-ui/react-icons";
+import { ChevronLeftIcon, ArrowLeftIcon, ArrowRightIcon } from "@radix-ui/react-icons";
 import { CurrentSegmentEditor } from "../../components/CurrentSegmentEditor";
 import { WorkoutStructureHint } from "../../components/WorkoutStructureHint";
 import Link from 'next/link';
@@ -216,6 +216,12 @@ const cleanupPlayer = async (
   }
 };
 
+// Add to interface Track or create a new interface TrackClip
+interface TrackClip {
+  startTime: number;
+  endTime: number;
+}
+
 export default function SongSegmentEditor() {
   const params = useParams();
 
@@ -248,6 +254,15 @@ export default function SongSegmentEditor() {
   const [isInitializing, setIsInitializing] = useState(false);
   const initAttempts = useRef(0);
   const maxInitAttempts = 3;
+
+  // Add new state for clip boundaries
+  const [clipBoundaries, setClipBoundaries] = useState<TrackClip>(() => {
+    if (typeof window === "undefined") return { startTime: 0, endTime: 0 };
+    
+    // Try to load from storage
+    const storedClip = TrackStorage.clip?.load(params.playlistId, params.songId);
+    return storedClip || { startTime: 0, endTime: 0 };
+  });
 
   // Move segments initialization to useEffect
   useEffect(() => {
@@ -1029,6 +1044,39 @@ export default function SongSegmentEditor() {
     ]);
   }, [currentSegment, segments]);
 
+  // Add handlers for setting clip boundaries
+  const handleSetClipStart = useCallback(() => {
+    const newStart = playbackState.position;
+    setClipBoundaries(prev => {
+      const newBoundaries = { 
+        ...prev, 
+        startTime: newStart,
+        // Ensure end time is after start time
+        endTime: prev.endTime > 0 ? Math.max(newStart, prev.endTime) : 0
+      };
+      
+      // Save to storage
+      TrackStorage.clip?.save(params.playlistId, params.songId, newBoundaries);
+      return newBoundaries;
+    });
+  }, [playbackState.position, params.playlistId, params.songId]);
+
+  const handleSetClipEnd = useCallback(() => {
+    const newEnd = playbackState.position;
+    setClipBoundaries(prev => {
+      const newBoundaries = { 
+        ...prev, 
+        endTime: newEnd,
+        // Ensure start time is before end time
+        startTime: prev.startTime > 0 ? Math.min(prev.startTime, newEnd) : 0
+      };
+      
+      // Save to storage
+      TrackStorage.clip?.save(params.playlistId, params.songId, newBoundaries);
+      return newBoundaries;
+    });
+  }, [playbackState.position, params.playlistId, params.songId]);
+
   if (loading || !track) {
     return (
       <LoadingState songId={params.songId} playlistId={params.playlistId} />
@@ -1093,14 +1141,29 @@ export default function SongSegmentEditor() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">BPM</span>
-              <input
-                type="number"
-                value={trackBPM.tempo}
-                onChange={(e) => handleBPMChange(parseInt(e.target.value))}
-                className="w-16 bg-white/5 rounded px-2 py-1 text-sm"
-              />
+            <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">BPM</span>
+                <input
+                  type="number"
+                  value={trackBPM.tempo}
+                  onChange={(e) => handleBPMChange(parseInt(e.target.value))}
+                  className="w-16 bg-white/5 rounded px-2 py-1 text-sm"
+                />
+              </div>
+              
+              {/* Add clip times display */}
+              <div className="h-4 w-px bg-white/20" /> {/* Vertical separator */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">Clip</span>
+                <span className="text-sm font-mono">
+                  {clipBoundaries.startTime > 0 
+                    ? formatDuration(clipBoundaries.startTime)
+                    : "start"} - {clipBoundaries.endTime > 0 
+                    ? formatDuration(clipBoundaries.endTime)
+                    : formatDuration(track.duration_ms)}
+                </span>
+              </div>
             </div>
             <span className="text-sm text-gray-400">
               {formatDuration(track.duration_ms)}
@@ -1157,6 +1220,10 @@ export default function SongSegmentEditor() {
               onAddSegment={addSegment}
               onSplitSegment={splitSegmentAtCurrentPosition}
               onMergeSegment={handleMergeSegment}
+              onSetStart={handleSetClipStart}
+              onSetEnd={handleSetClipEnd}
+              clipStart={clipBoundaries.startTime}
+              clipEnd={clipBoundaries.endTime}
               isReady={isPlayerReady}
               canSplit={
                 !!playbackState.position &&
@@ -1192,6 +1259,8 @@ export default function SongSegmentEditor() {
               trackBPM={trackBPM}
               onDragStart={handleDragStart}
               formatDuration={formatDuration}
+              clipStart={clipBoundaries.startTime}
+              clipEnd={clipBoundaries.endTime}
             />
             <CurrentSegmentEditor
               segment={currentSegment}
