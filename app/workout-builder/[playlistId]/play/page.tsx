@@ -35,6 +35,7 @@ import { DeviceStorage } from "../../../utils/storage/DeviceStorage";
 import { GlobalWorkoutTimeline } from "../components/GlobalWorkoutTimeline";
 import { WorkoutBadge } from "../components/WorkoutBadge";
 import { SmallWorkoutBadge } from "../components/SmallWorkoutBadge";
+import { AudioCrossfader } from "../../../utils/audio/AudioCrossfader";
 
 // Add types if not already defined in types.ts
 declare global {
@@ -193,10 +194,80 @@ export default function WorkoutPlayer() {
     endTime: 0 
   });
 
-  // Define playTrack first since it's used by playNextTrack
+  // Add audio context state
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [audioSource, setAudioSource] = useState<AudioBufferSourceNode | null>(null);
+
+  // Add crossfader state
+  const [crossfader] = useState(() => new AudioCrossfader(3)); // 3 second crossfade
+
+  // Add method to play local track
+  const playLocalTrack = async (trackId: string, startPosition: number = 0) => {
+    try {
+      console.log(`[playLocalTrack] Starting playback of: ${trackId} at position: ${startPosition}ms`);
+      
+      // Get audio file URL and clip data
+      const audioUrl = TrackStorage.getLocalAudioUrl(trackId);
+      const clipData = TrackStorage.clip.load(playlistId, trackId);
+      
+      console.log(`[playLocalTrack] Audio URL: ${audioUrl}`);
+      console.log(`[playLocalTrack] Clip data:`, clipData);
+      
+      // Ensure audio context is ready
+      if (crossfader.audioContext?.state === 'suspended') {
+        console.log('[playLocalTrack] Resuming audio context');
+        await crossfader.audioContext?.resume();
+      }
+      
+      // Load track if not already loaded
+      const isLoaded = await crossfader.loadTrack(trackId, audioUrl);
+      
+      if (!isLoaded) {
+        throw new Error("Failed to load audio track");
+      }
+
+      // Get track duration from crossfader
+      const trackDuration = crossfader.getTrackDuration(trackId);
+      console.log(`[playLocalTrack] Track duration: ${trackDuration}ms`);
+
+      // Set clip boundaries - either from storage or default to full track
+      const effectiveClipData = clipData || { startTime: 0, endTime: trackDuration };
+      setClipBoundaries(effectiveClipData);
+
+      console.log(`[playLocalTrack] Track loaded, starting playback`);
+      // Play with crossfade, using clip boundaries
+      await crossfader.play(
+        trackId, 
+        effectiveClipData.startTime ?? startPosition,
+        effectiveClipData.endTime
+      );
+
+      // Update playback state with duration and boundaries
+      setPlaybackState(prev => ({
+        ...prev,
+        isPlaying: true,
+        position: effectiveClipData.startTime ?? startPosition,
+        duration: trackDuration,
+        hasStarted: true,
+        track_window: { current_track: { id: trackId } }
+      }));
+
+    } catch (error) {
+      console.error("[playLocalTrack] Error:", error);
+    }
+  };
+
+  // Update playTrack to handle both Spotify and local tracks
   const playTrack = useCallback(
     async (trackId: string, resumePosition?: number) => {
       try {
+        // Check if it's a local track
+        if (TrackStorage.isLocalTrack(trackId)) {
+          await playLocalTrack(trackId, resumePosition);
+          return;
+        }
+
+        // Existing Spotify playback logic...
         if (!player || !deviceId) {
           throw new Error("Player or device ID not available");
         }
@@ -244,7 +315,8 @@ export default function WorkoutPlayer() {
           position: boundedPosition,
           hasStarted: true,
           track_window: {
-            current_track: { id: trackId },
+            current_track: {
+              id: trackId },
           },
         }));
       } catch (error) {
@@ -267,64 +339,22 @@ export default function WorkoutPlayer() {
       // Set the flag just before we start making changes
       isPlayingNextTrack.current = true;
 
-      // Get the next track and its clip data immediately
+      // Get the next track
       const nextTrack = tracksRef.current[nextTrackIndex];
-      const token = SpotifyAuthStorage.load();
-      const clipData = TrackStorage.clip.load(playlistId, nextTrack.id);
-      const startPosition = clipData?.startTime ?? 0;
-
-      if (!token || !player || !deviceId) {
-        throw new Error("Player not ready");
-      }
+      console.log("[playNextTrack] Playing next track:", nextTrack);
 
       // Update track index immediately
       setCurrentTrackIndex(nextTrackIndex);
 
-      // Prepare the play request with the correct starting position
-      const playRequest = fetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            uris: [`spotify:track:${nextTrack.id}`],
-            position_ms: startPosition,
-          }),
-        }
-      );
+      // Play the track
+      await playTrack(nextTrack.id);
 
-      // Execute play request and seek (if needed) in parallel
-      await Promise.all([
-        playRequest,
-        startPosition > 0 ? player.seek(startPosition) : Promise.resolve(),
-      ]);
-
-      // Reset tracking state
-      startTimeRef.current = Date.now() - startPosition;
-      positionRef.current = startPosition;
-
-      // Update playback state
-      setPlaybackState((prev) => ({
-        ...prev,
-        isPlaying: true,
-        position: startPosition,
-        hasStarted: true,
-        track_window: {
-          current_track: { id: nextTrack.id },
-        },
-      }));
-
-      // Clear the next track flag
       isPlayingNextTrack.current = false;
-
     } catch (error) {
       console.error("[playNextTrack] Error:", error);
       isPlayingNextTrack.current = false;
     }
-  }, [player, deviceId, playlistId]);
+  }, [playTrack]);
 
   // Update the playback state handling effect
   useEffect(() => {
@@ -816,6 +846,36 @@ export default function WorkoutPlayer() {
     [player, isPlayerReady, currentTrack?.duration_ms, clipBoundaries]
   );
 
+  // Clean up audio context on unmount
+  useEffect(() => {
+    return () => {
+      if (audioSource) {
+        audioSource.stop();
+      }
+      if (audioContext) {
+        audioContext.close();
+      }
+    };
+  }, []);
+
+  // Clean up crossfader on unmount
+  useEffect(() => {
+    return () => {
+      crossfader.cleanup();
+    };
+  }, [crossfader]);
+
+  // Add a click handler to initialize audio context
+  useEffect(() => {
+    const initAudio = () => {
+      crossfader.audioContext?.resume();
+      document.removeEventListener('click', initAudio);
+    };
+    
+    document.addEventListener('click', initAudio);
+    return () => document.removeEventListener('click', initAudio);
+  }, [crossfader]);
+
   // 3. Return your JSX
   if (error) {
     return <div>Error: {error}</div>;
@@ -1023,7 +1083,7 @@ export default function WorkoutPlayer() {
                 showBeats={true}
                 bpm={trackBPM.tempo}
                 clipStart={clipBoundaries.startTime}
-                clipEnd={clipBoundaries.endTime}
+                clipEnd={clipBoundaries.endTime || currentTrack.duration_ms}
               />
             </div>
 

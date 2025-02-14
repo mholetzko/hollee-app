@@ -14,6 +14,10 @@ interface TrackData {
     tempo: number;
     isManual: boolean;
   } | null;
+  clip?: {
+    startTime: number;
+    endTime: number;
+  };
 }
 
 interface ConfigData {
@@ -43,14 +47,20 @@ export const WorkoutConfigStorage = {
           TrackStorage.segments.save(playlistId, songId, config.segments as Segment[]);
         }
 
-        // Save BPM separately - ensure we have the correct format
+        // Save BPM
         if (config.bpm?.tempo) {
-          TrackStorage.bpm.save(playlistId, songId, config.bpm.tempo);
+          TrackStorage.bpm.save(playlistId, songId, config.bpm.tempo, config.bpm.isManual);
+        }
+
+        // Save clip boundaries
+        if (config.clip) {
+          TrackStorage.clip.save(playlistId, songId, config.clip);
         }
 
         console.log(`[Config Import] Saved data for track: ${songId}`, {
           segments: config.segments?.length || 0,
-          bpm: config.bpm?.tempo || null
+          bpm: config.bpm?.tempo || null,
+          clip: config.clip || null
         });
       });
 
@@ -73,9 +83,12 @@ export const WorkoutConfigStorage = {
 
     tracks.forEach(track => {
       const trackData = TrackStorage.loadTrackData(playlistId, track.id);
+      const clipData = TrackStorage.clip.load(playlistId, track.id);
+      
       config.tracks[`${playlistId}_${track.id}`] = {
         segments: trackData.segments,
-        bpm: trackData.bpm // This is already in the correct format from loadTrackData
+        bpm: trackData.bpm,
+        clip: clipData || { startTime: 0, endTime: track.duration_ms }
       };
     });
 

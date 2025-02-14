@@ -19,6 +19,7 @@ import { ChevronLeftIcon, ArrowLeftIcon, ArrowRightIcon } from "@radix-ui/react-
 import { CurrentSegmentEditor } from "../../components/CurrentSegmentEditor";
 import { WorkoutStructureHint } from "../../components/WorkoutStructureHint";
 import Link from 'next/link';
+import { AudioCrossfader } from "../../../../utils/audio/AudioCrossfader";
 
 // Add type for Spotify Player
 declare global {
@@ -80,9 +81,21 @@ const getBPMFromSources = async (
   };
 };
 
-// Add new storage functions
+// Update the loadTrackData function to return the loaded data
 const loadTrackData = (playlistId: string, songId: string) => {
-  return TrackStorage.loadTrackData(playlistId, songId);
+  try {
+    const data = TrackStorage.loadTrackData(playlistId, songId);
+    return {
+      segments: data.segments || [], // Ensure we always return an array
+      bpm: data.bpm || { tempo: 128, isManual: true }
+    };
+  } catch (error) {
+    console.error('[loadTrackData] Error:', error);
+    return {
+      segments: [],
+      bpm: { tempo: 128, isManual: true }
+    };
+  }
 };
 
 // Update the save function to use individual save methods
@@ -225,9 +238,11 @@ interface TrackClip {
 export default function SongSegmentEditor() {
   const params = useParams();
 
+  // Initialize segments with empty array
+  const [segments, setSegments] = useState<Segment[]>([]);
+  
   // Update state declarations to use the new params
   const [track, setTrack] = useState<Track | null>(null);
-  const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [player, setPlayer] = useState<any>(null);
@@ -255,22 +270,87 @@ export default function SongSegmentEditor() {
   const initAttempts = useRef(0);
   const maxInitAttempts = 3;
 
-  // Add new state for clip boundaries
+  // Update the clip boundaries initialization
   const [clipBoundaries, setClipBoundaries] = useState<TrackClip>(() => {
     if (typeof window === "undefined") return { startTime: 0, endTime: 0 };
     
     // Try to load from storage
-    const storedClip = TrackStorage.clip?.load(params.playlistId, params.songId);
-    return storedClip || { startTime: 0, endTime: 0 };
+    const storedClip = TrackStorage.clip.load(params.playlistId, params.songId);
+    if (storedClip) {
+      return storedClip;
+    }
+    
+    // If no stored clip, return zeros (will be updated when track loads)
+    return { startTime: 0, endTime: 0 };
   });
 
-  // Move segments initialization to useEffect
+  // Add state for track duration
+  const [trackDuration, setTrackDuration] = useState<number>(0);
+  const [crossfader] = useState(() => new AudioCrossfader(3));
+
+  // Load track data on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const { segments } = loadTrackData(params.playlistId, params.songId);
-      setSegments(segments);
-    }
-  }, [params.playlistId, params.songId]);
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // Load track data first
+        const trackData = loadTrackData(params.playlistId, params.songId);
+        setSegments(trackData.segments);
+        setTrackBPM(trackData.bpm);
+
+        // Get clip data
+        const clipData = TrackStorage.clip.load(params.playlistId, params.songId);
+
+        // For local tracks, get duration from audio file
+        if (TrackStorage.isLocalTrack(params.songId)) {
+          const audioUrl = TrackStorage.getLocalAudioUrl(params.songId);
+          const isLoaded = await crossfader.loadTrack(params.songId, audioUrl);
+          if (isLoaded) {
+            const duration = crossfader.getTrackDuration(params.songId);
+            setTrackDuration(duration);
+            
+            // Always set clip boundaries - either from storage or defaults
+            setClipBoundaries(clipData || { startTime: 0, endTime: duration });
+            
+            // Save default boundaries if none exist
+            if (!clipData) {
+              TrackStorage.clip.save(params.playlistId, params.songId, {
+                startTime: 0,
+                endTime: duration
+              });
+            }
+          }
+        } else {
+          // For Spotify tracks, get duration from track info
+          const token = SpotifyAuthStorage.load();
+          if (token) {
+            const response = await fetch(`https://api.spotify.com/v1/tracks/${params.songId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const track = await response.json();
+            setTrackDuration(track.duration_ms);
+
+            // Always set clip boundaries - either from storage or defaults
+            setClipBoundaries(clipData || { startTime: 0, endTime: track.duration_ms });
+            
+            // Save default boundaries if none exist
+            if (!clipData) {
+              TrackStorage.clip.save(params.playlistId, params.songId, {
+                startTime: 0,
+                endTime: track.duration_ms
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[loadData] Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [params.playlistId, params.songId, crossfader]);
 
   const [trackBPM, setTrackBPM] = useState<TrackBPM>(() => {
     if (typeof window === "undefined") {
@@ -1077,6 +1157,13 @@ export default function SongSegmentEditor() {
     });
   }, [playbackState.position, params.playlistId, params.songId]);
 
+  // Clean up crossfader
+  useEffect(() => {
+    return () => {
+      crossfader.cleanup();
+    };
+  }, [crossfader]);
+
   if (loading || !track) {
     return (
       <LoadingState songId={params.songId} playlistId={params.playlistId} />
@@ -1157,16 +1244,12 @@ export default function SongSegmentEditor() {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-400">Clip</span>
                 <span className="text-sm font-mono">
-                  {clipBoundaries.startTime > 0 
-                    ? formatDuration(clipBoundaries.startTime)
-                    : "start"} - {clipBoundaries.endTime > 0 
-                    ? formatDuration(clipBoundaries.endTime)
-                    : formatDuration(track.duration_ms)}
+                  {formatDuration(clipBoundaries.startTime)} - {formatDuration(clipBoundaries.endTime || trackDuration)}
                 </span>
               </div>
             </div>
             <span className="text-sm text-gray-400">
-              {formatDuration(track.duration_ms)}
+              {formatDuration(trackDuration)}
             </span>
           </div>
         </div>
@@ -1178,7 +1261,7 @@ export default function SongSegmentEditor() {
               <WorkoutDisplay segment={currentSegment} />
               <BeatCountdown
                 currentPosition={playbackState.position}
-                nextSegmentStart={nextSegment?.startTime ?? track.duration_ms}
+                nextSegmentStart={nextSegment?.startTime ?? trackDuration}
                 bpm={trackBPM.tempo}
                 nextSegment={nextSegment}
               />
@@ -1212,7 +1295,7 @@ export default function SongSegmentEditor() {
             <TransportControls
               isPlaying={playbackState.isPlaying}
               position={playbackState.position}
-              duration={track.duration_ms}
+              duration={trackDuration}
               onPlay={togglePlayback}
               onStop={handleStop}
               onNextSegment={handleNextSegment}
@@ -1245,7 +1328,7 @@ export default function SongSegmentEditor() {
             {trackBPM && (
               <BPMVisualization
                 bpm={trackBPM.tempo}
-                duration={track.duration_ms}
+                duration={trackDuration}
                 currentPosition={playbackState.position}
                 isPlaying={playbackState.isPlaying}
                 onSeek={handleSeek}

@@ -166,4 +166,69 @@ export const TrackStorage = {
       }
     },
   },
+  getLocalAudioUrl: (trackId: string): string => {
+    return `/audio/tracks/${trackId}.mp3`;
+  },
+  isLocalTrack: (trackId: string): boolean => {
+    const localTrackPattern = /^local-\d+$/;
+    return localTrackPattern.test(trackId);
+  },
+  createLocalTrackId: (number: number): string => {
+    return `local-${number}`;
+  },
+  local: {
+    getDuration: async (trackId: string): Promise<number> => {
+      return new Promise((resolve) => {
+        const audio = new Audio(TrackStorage.getLocalAudioUrl(trackId));
+        audio.addEventListener('loadedmetadata', () => {
+          resolve(audio.duration * 1000);
+        });
+        audio.addEventListener('error', () => {
+          console.error(`[TrackStorage] Error loading duration for ${trackId}`);
+          resolve(0);
+        });
+      });
+    },
+    getAll: async (): Promise<Array<{ id: string; duration_ms: number }>> => {
+      try {
+        const tracks = [];
+        let i = 1;
+        
+        while (true) {
+          const trackId = TrackStorage.createLocalTrackId(i);
+          const duration = await TrackStorage.local.getDuration(trackId);
+          
+          if (duration === 0) break;
+          
+          tracks.push({
+            id: trackId,
+            duration_ms: duration,
+          });
+          
+          i++;
+        }
+        
+        return tracks;
+      } catch (error) {
+        console.error('[TrackStorage] Error getting local tracks:', error);
+        return [];
+      }
+    },
+    createTrack: async (trackId: string): Promise<Track | null> => {
+      try {
+        const duration = await TrackStorage.local.getDuration(trackId);
+        if (duration === 0) return null;
+
+        return {
+          id: trackId,
+          name: `Local Track ${trackId.split('-')[1]}`,
+          duration_ms: duration,
+          uri: TrackStorage.getLocalAudioUrl(trackId),
+        };
+      } catch (error) {
+        console.error('[TrackStorage] Error creating track:', error);
+        return null;
+      }
+    }
+  },
 }; 

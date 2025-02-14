@@ -93,7 +93,10 @@ export default function WorkoutBuilder({ params }: { params: { playlistId: strin
   }, [params.playlistId, router])
 
   const handleExport = () => {
+    // Get the configuration including clip boundaries
     const config = WorkoutConfigStorage.exportConfig(params.playlistId, tracks);
+    
+    // Create and download the file
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
@@ -104,6 +107,8 @@ export default function WorkoutBuilder({ params }: { params: { playlistId: strin
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    toast.success('Workout configuration exported successfully');
   };
 
   const handleImport = async (file: File) => {
